@@ -1,0 +1,28 @@
+## ===== .NET build outputs =====
+[Bb]in/
+[Oo]bj/
+
+## ===== Visual Studio =====
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## ===== Rider / VS Code =====
+.idea/
+*.DotSettings.user
+
+## ===== Logs =====
+Logs/
+*.log
+
+## ===== Sensitive configuration (do NOT commit) =====
+appsettings.json
+appsettings.Development.json
+appsettings.*.json
+!appsettings.Example.json
+
+## ===== Misc =====
+*.pdb
+*.cache

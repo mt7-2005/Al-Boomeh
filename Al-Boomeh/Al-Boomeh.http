@@ -1,0 +1,6 @@
+@Al_Boomeh_HostAddress = http://localhost:5155
+
+GET {{Al_Boomeh_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
