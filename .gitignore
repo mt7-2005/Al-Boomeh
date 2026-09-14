@@ -8,7 +8,12 @@
 *.suo
 *.userosscache
 *.sln.docstates
-*.sln
+
+## Only the main solution file (Al-Boomeh/Al-Boomeh.sln) is kept;
+## the per-project solution files that VS auto-creates are excluded.
+Al-BoomehData/*.sln
+Al-BoomehServices/*.sln
+Seeding/*.sln
 
 ## ===== Rider / VS Code =====
 .idea/
