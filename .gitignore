@@ -8,6 +8,7 @@
 *.suo
 *.userosscache
 *.sln.docstates
+*.sln
 
 ## ===== Rider / VS Code =====
 .idea/
