@@ -1,23 +1,26 @@
 using Al_Boomeh.Api.Middleware;
 using Al_Boomeh.Authorization;
+using Al_Boomeh.Services;
 using Al_BoomehAPI.Middleware;
 using Al_BoomehDAL.Classes;
 using Al_BoomehDAL.Data;
-using Al_BoomehDAL.Models;
 using Al_BoomehDAL.Interfaces;
+using Al_BoomehDAL.Models;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
-using Microsoft.AspNetCore.RateLimiting;
+using FluentValidation;
 using System.Threading.RateLimiting;
+using Al_BoomehServices.Validators;
 using static Al_Boomeh.Controllers.OrdersController;
-using Al_Boomeh.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -140,7 +143,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IAuditSuppressor, AuditSuppressor>();
+builder.Services.AddScoped<IAuditScope, AuditScope>();
+builder.Services.AddValidatorsFromAssemblyContaining<AppValidators>();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 builder.Services.AddScoped<AuditingSaveChangesInterceptor>();
 builder.Services.AddScoped<ISmsSender, SmsSender>();
@@ -157,19 +161,18 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     }
 });
 
-builder.Services.AddScoped<CategoriesService>();
-builder.Services.AddScoped<UsersService>();
-builder.Services.AddScoped<CustomersService>();
-builder.Services.AddScoped<OrdersService>();
-builder.Services.AddScoped<OtpService>();
-builder.Services.AddScoped<AddressService>();
-builder.Services.AddScoped<DriversService>();
-builder.Services.AddScoped<ExtrasService>();
-builder.Services.AddScoped<ProductsService>();
-builder.Services.AddScoped<StoresService>();
-builder.Services.AddScoped<VouchersService>();
-builder.Services.AddScoped<RefreshTokenService>();
-
+builder.Services.AddScoped<ICategoriesService, CategoryService>();
+builder.Services.AddScoped<IUsersService, UserService>();
+builder.Services.AddScoped<ICustomersService, CustomerService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IDriversService, DriversService>();
+builder.Services.AddScoped<IExtrasService, ProductOptionService>();
+builder.Services.AddScoped<IProductsService, ProductService>();
+builder.Services.AddScoped<IStoresService, StoreService>();
+builder.Services.AddScoped<IVouchersService, VoucherService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

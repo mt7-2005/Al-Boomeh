@@ -1,5 +1,6 @@
 ﻿using Al_Boomeh.Authorization;
 using Al_Boomeh.Services;
+using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
@@ -7,8 +8,8 @@ using System.Security.Claims;
 public class StoreOwnerOrAdminHandler
     : AuthorizationHandler<StoreOwnerOrAdminRequirement, int>
 {
-    private readonly UsersService _usersService;
-    public StoreOwnerOrAdminHandler(UsersService usersService)
+    private readonly IUsersService _usersService;
+    public StoreOwnerOrAdminHandler(IUsersService usersService)
     {
         _usersService = usersService;
     }

@@ -5,6 +5,7 @@ using Al_BoomehServices.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehAPI.Controllers
 {
@@ -13,9 +14,9 @@ namespace Al_BoomehAPI.Controllers
     [Route("api/[controller]")]
     public class AddressesController : ControllerBase
     {
-        private readonly AddressService _addressService;
-        private readonly UsersService _usersService;
-        public AddressesController(AddressService address,UsersService usersService)
+        private readonly IAddressService _addressService;
+        private readonly IUsersService _usersService;
+        public AddressesController(IAddressService address, IUsersService usersService)
         {
             _usersService=usersService;
             _addressService = address;

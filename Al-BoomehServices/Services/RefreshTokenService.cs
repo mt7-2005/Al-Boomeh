@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Al_BoomehServices.Interfaces;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Al_BoomehServices.Services
 {
@@ -49,16 +50,26 @@ namespace Al_BoomehServices.Services
 
         public async Task RevokeAllForUser(Guid userId)
         {
-            var tokens = await _context.RefreshTokens
-                .Where(x => x.UserId == userId && x.RefreshTokenRevokedAt == null)
-                .ToListAsync();
-
-            foreach (var token in tokens)
+            try
             {
-                token.RefreshTokenRevokedAt = DateTime.UtcNow;
-            }
+                var tokens = await _context.RefreshTokens
+            .Where(x => x.UserId == userId && x.RefreshTokenRevokedAt == null)
+            .ToListAsync();
 
-            await _context.SaveChangesAsync();
+                if (tokens is null) return;
+
+                foreach (var token in tokens)
+                {
+                    token.RefreshTokenRevokedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new ConflictException("Token was refresh by another request");
+            }
+           
         }
 
         public async Task<bool> Revoked(Guid userId)

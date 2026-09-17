@@ -21,7 +21,7 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
-        catch (BusinessRuleException ex)
+        catch (AppException ex)
         {
             _logger.LogWarning(ex,
                 "Business rule violation on {Method} {Path}: {Message}",

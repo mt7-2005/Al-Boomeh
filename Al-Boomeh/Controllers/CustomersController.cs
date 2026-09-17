@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using Al_BoomehServices.Interfaces;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -14,9 +16,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class CustomersController : ControllerBase
     {
-        private readonly CustomersService _customersService;
-        private readonly UsersService _userService;
-        public CustomersController(CustomersService customer,UsersService usersService)
+        private readonly ICustomersService _customersService;
+        private readonly IUsersService _userService;
+        public CustomersController(ICustomersService customer, IUsersService usersService)
         {
             _userService = usersService;
             _customersService = customer;
@@ -137,6 +139,10 @@ namespace Al_Boomeh.Controllers
               id,
               "CustomerOwnerOrAdmin");
 
+            if (!authResult.Succeeded)
+                return Forbid();
+
+
             if (await _customersService.UpdateCustomer(id,customerDTO)) return Ok("Updated");
             return BadRequest("Failed to update customer");
         }
@@ -217,13 +223,20 @@ namespace Al_Boomeh.Controllers
             return Ok(cards);
         }
 
+        [Authorize(Roles = "Customer")]
         [HttpPost("{id}/cards", Name = "AddCard")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> AddCard( int id, [FromBody] CardDTO cardDTO)
+        public async Task<ActionResult> AddCard( int id, [FromBody] CardDTO cardDTO, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || cardDTO == null) return BadRequest("Invalid Data");
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                       User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
 
@@ -232,13 +245,21 @@ namespace Al_Boomeh.Controllers
             return CreatedAtAction(nameof(AddCard), newcardid);
         }
 
+
+        [Authorize(Roles = "Customer")]
         [HttpDelete("{id}/cards/{cardid}", Name = "DeleteCard")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> DeleteCard(int id, int cardid)
+        public async Task<ActionResult> DeleteCard(int id, int cardid, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || cardid <= 0) return BadRequest("Invalid Data");
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                 User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
 
@@ -252,19 +273,26 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<VoucherDTO>>> GetCustomerVoucher(int id)
+        public async Task<ActionResult<List<VoucherDTO>>> GetCustomerVoucher(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0) return BadRequest("Invalid Data");
 
+
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
 
+
+            var authResult = await authorizationService.AuthorizeAsync(
+      User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             var vouchers = await _customersService.GetCustomerVouchers(id);
             if (vouchers == null || vouchers.Count == 0) return NotFound("No vouchers found");
             return Ok(vouchers);
         }
 
-        
+        [Authorize(Roles = "Admin")]
         [HttpGet("{id}/issues", Name = "GetCustomerIssue")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -280,6 +308,7 @@ namespace Al_Boomeh.Controllers
             return Ok(issues);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("{id}/issues/{issueid}", Name = "AddIssue")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -294,6 +323,7 @@ namespace Al_Boomeh.Controllers
             return CreatedAtAction(nameof(AddIssue), newissue);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}/issues/{issuecustomerid}", Name = "DeleteIssue")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -314,42 +344,63 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<StoreInfoDTO>>> GetFavStores(int id)
+        public async Task<ActionResult<List<StoreInfoDTO>>> GetFavStores(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0) return BadRequest("Invalid Data");
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+              User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             var stores = await _customersService.GetFavStores(id);
             if (stores == null || stores.Count == 0) return NotFound("No favorite stores found");
             return Ok(stores);
         }
 
+        [Authorize(Roles = "Customer")]
         [HttpPost("{id}/fav-stores", Name = "AddFavStore")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> AddFavStore( int id, [FromBody] FavStoresDTO storeDTO)
+        public async Task<ActionResult> AddFavStore( int id, [FromBody] FavStoresDTO storeDTO, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || storeDTO == null) return BadRequest("Invalid Data");
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+      User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             int newfav =await _customersService.AddFavStore(storeDTO);
 
             return CreatedAtAction(nameof(AddFavStore), newfav);
         }
 
+        [Authorize(Roles = "Customer")]
         [HttpDelete("{id}/fav-stores/{favid}", Name = "DeleteStoreFromFav")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> DeleteStoreFromFav(int id, int favid)
+        public async Task<ActionResult> DeleteStoreFromFav(int id, int favid, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || favid <= 0) return BadRequest("Invalid Data");
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
 
+            var authResult = await authorizationService.AuthorizeAsync(
+      User, id, "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             if (await _customersService.DeleteStoreFromFav(favid)) return Ok();
             return BadRequest("Failed to delete favorite store");

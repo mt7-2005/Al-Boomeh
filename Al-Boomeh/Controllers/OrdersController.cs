@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Al_BoomehServices.Interfaces;
+
 namespace Al_Boomeh.Controllers
 {
     [Authorize]
@@ -16,10 +18,10 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
-        private readonly OrdersService _order;
+        private readonly IOrderService _order;
         private readonly IConfiguration _configuration;
-        private readonly UsersService _usersService;
-        public OrdersController(OrdersService order,IConfiguration configuration,UsersService usersService)
+        private readonly IUsersService _usersService;
+        public OrdersController(IOrderService order,IConfiguration configuration, IUsersService usersService)
         {
             _usersService= usersService;
             _configuration = configuration;
@@ -38,48 +40,76 @@ namespace Al_Boomeh.Controllers
             return Ok(orderlist);
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpGet("{id}/order",Name ="GetOrderById")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<OrderInfoDTO?>> GetOrderById(int id)
+        public async Task<ActionResult<OrderInfoDTO?>> GetOrderById(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if(id<0||!int.TryParse(id.ToString(), out int number))
             {
                 return BadRequest("Invalid Data");
             }
             var order=await _order.GetOrderById(id);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                order.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
             if (order == null) return NotFound($"No order with id {id}");
             return Ok(order);
         }
 
 
-        [Authorize(Roles = "Admin")]
         [HttpGet("{code}", Name = "GetOrderByCode")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public async Task<ActionResult<OrderInfoDTO?>> GetOrderByCode(string code)
+        public async Task<ActionResult<OrderInfoDTO?>> GetOrderByCode(string code, [FromServices] IAuthorizationService authorizationService)
         {
             if (string.IsNullOrEmpty(code))
             {
                 return BadRequest("Invalid Data");
             }
             var order = await _order.GetOrderByCode(code);
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                order.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
             if (order == null) return NotFound($"No order with code {code}");
             return Ok(order);
         }
 
 
-        [Authorize(Roles = "Admin")]
         [HttpGet("{status}/get-count-by-status",Name ="GetOrdersCountByStatus")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<OrderInfoDTO>?>> GetOrdersCountByStatus(enStatus status)
+        public async Task<ActionResult<List<OrderInfoDTO>?>> GetOrdersCountByStatus(int storeId,enStatus status, [FromServices] IAuthorizationService authorizationService)
         {
-            var orderlist=await _order.GetOrdersByStatus(status);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                storeId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
+            var orderlist =await _order.GetOrdersByStatus(status,storeId);
             if (orderlist ==0) return NotFound("No data found");
             return Ok(orderlist);
         }
@@ -106,7 +136,7 @@ namespace Al_Boomeh.Controllers
         [HttpPost(Name = "CreateCartLine")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> CreateCartLine([FromBody] CreateOrderCartDTO orderDTO, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> CreateCartLine([FromBody] CreateOrderCartDTO orderDTO, [FromServices] IAuthorizationService authorizationService, [FromHeader(Name = "Idempotency-Key")] string idempotencyKey)
         {
             
 
@@ -122,23 +152,33 @@ namespace Al_Boomeh.Controllers
             if (!authResult.Succeeded)
                 return Forbid();
 
-            int newId = await _order.CreateCart(orderDTO);
+            int newId = await _order.CreateCart(idempotencyKey,orderDTO);
 
             if (newId == -1) return BadRequest("failed to create order");
-            return Created();
+            return CreatedAtAction(nameof(GetOrderById), new { id = newId }, new { id = newId });
 
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpPut("{id}/updatetime",Name ="UpdateOrderTime")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateOrderTime([FromBody] UpdateOrderTimeDTO orderTimeDTO,int id)
+        public async Task<ActionResult> UpdateOrderTime([FromBody] UpdateOrderTimeDTO orderTimeDTO,int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id < 0 || orderTimeDTO.EstimatedDeliveryTime <= 0 || orderTimeDTO.EstimatedDeliveryTime <= 0) return BadRequest( "Invalid Data");
 
-            if (!await _order.IsExist(id)) return NotFound($"No Order with id {id}");
+            var order = await _order.GetOrderById(id);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                order.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
+            if (order == null) return NotFound($"No order with id {id}");
 
             if (await _order.UpdateOrderTime(id,orderTimeDTO)) return Ok();
             else return BadRequest("Failed To Update Order");
@@ -159,16 +199,36 @@ namespace Al_Boomeh.Controllers
             else return BadRequest("Failed To delete");
         }
 
-        [AllowAnonymous]
         [HttpGet("{code}/getlines", Name ="GetLinesByOrderId")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<OrderLineDTO>>> GetLinesByOrderCode(string code)
+        public async Task<ActionResult<List<OrderLineDTO>>> GetLinesByOrderCode(string code, [FromServices] IAuthorizationService authorizationService)
         {
             if (string.IsNullOrEmpty(code)) return BadRequest("Invalid Data");
-            if (!await _order.IsOrderExistByCode(code)) return NotFound($"No Order with code {code}");
+            var order = await _order.GetOrderByCode(code);
+
+            if (order == null) return NotFound($"No order with code {code}");
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                order.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
+            var authResultCustomer = await authorizationService.AuthorizeAsync(
+              User,
+              order.CustomerId,
+              "CustomerOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             var lineslist = await _order.GetOrderLines(code);
+
             if (lineslist == null) return NotFound("No data found");
             return Ok(lineslist);
         }
@@ -297,7 +357,7 @@ namespace Al_Boomeh.Controllers
         }
 
         [Authorize(Roles = "Customer")]
-        [HttpPost("{id}/line-cart", Name = "AddLineTocart")]
+        [HttpPost("{id}/line-cart", Name = "AddLineToCart")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -351,16 +411,36 @@ namespace Al_Boomeh.Controllers
             return BadRequest("failed to delete");
         }
 
-        [AllowAnonymous]
         [HttpGet("{id}/getline", Name = "GetLineFromId")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<OrderLineDTO>> GetLineFromId(int id)
+        public async Task<ActionResult<OrderLineDTO>> GetLineFromId(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id < 0) return BadRequest("Invalid data");
-            if(!await  _order.IsOrderLineExist(id)) return NotFound($"No order line with id {id}");
             var line=await _order.GetOrderLine(id);
+
+            if (line == null) return NotFound($"No order line with id {id}");
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                line.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
+            var authResultCustomer = await authorizationService.AuthorizeAsync(
+              User,
+              line.CustomerId,
+              "CustomerOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
             return Ok(line);
         }
     }

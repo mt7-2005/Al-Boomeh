@@ -4,6 +4,7 @@ using Al_BoomehDAL.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Al_BoomehDAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915213616_AddRowVersion")]
+    partial class AddRowVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -559,10 +562,6 @@ namespace Al_BoomehDAL.Migrations
                     b.Property<int>("EstimatedPreparingTime")
                         .HasColumnType("int");
 
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -623,9 +622,6 @@ namespace Al_BoomehDAL.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("DriverId");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
 
                     b.HasIndex("StoreId");
 

@@ -13,7 +13,7 @@ namespace Al_BoomehServices.Interfaces
         Task<long> GetOrdersByStatus(enStatus Status,int storeId);
         Task<OrderInfoDTO> GetOrderById(int orderId);
         Task<OrderInfoDTO> GetOrderByCode(string orderCode);
-        Task<int> CreateCart(CreateOrderCartDTO orderDTO);
+        Task<int> CreateCart(string idempotencyKey, CreateOrderCartDTO orderDTO);
         Task<bool> PlaceOrder(int orderId, PlaceOrderDTO orderDTO, decimal deliveryfees = 0, decimal servicefees = 0);
         Task<bool> UpdateOrderStatus(int orderId, UpdateOrderStatusDTO statusdto);
         Task<bool> UpdateOrderTime(int orderId, UpdateOrderTimeDTO orderTimeDTO);

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.TagHelpers;
 using System.Threading.Tasks;
+using Al_BoomehServices.Interfaces;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -15,9 +17,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class StoresController : ControllerBase
     {
-        private readonly StoresService _store;
-        private readonly UsersService _userService;
-        public StoresController(StoresService store,UsersService usersService)
+        private readonly IStoresService _store;
+        private readonly IUsersService _userService;
+        public StoresController(IStoresService store, IUsersService usersService)
         {
             _userService = usersService;
             _store = store;

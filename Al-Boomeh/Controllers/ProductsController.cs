@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using Al_BoomehServices.Interfaces;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -14,9 +16,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private readonly ProductsService _product;
-        private readonly UsersService _usersService;
-        public ProductsController(ProductsService product,UsersService usersService)
+        private readonly IProductsService _product;
+        private readonly IUsersService _usersService;
+        public ProductsController(IProductsService product, IUsersService usersService)
         {
             _usersService = usersService;
             _product = product;
@@ -117,13 +119,23 @@ namespace Al_Boomeh.Controllers
             return Ok(topDic);
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpPost(Name = "AddProduct")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> AddProduct([FromBody] CreateProductDTO productDTO)
+        public async Task<ActionResult> AddProduct([FromBody] CreateProductDTO productDTO, [FromServices] IAuthorizationService authorizationService)
         {
             if (productDTO == null||productDTO.ProductPrice<=0 || productDTO.StockQuantity < 0) return BadRequest("Invalid Data");
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                productDTO.StoreId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
 
             int newId = await _product.CreateProduct(productDTO);
             if (newId == -1) return BadRequest("Failed to create product, name may already exist in this store");
@@ -131,17 +143,27 @@ namespace Al_Boomeh.Controllers
             return CreatedAtAction(nameof(GetProductById), new { id = newId }, new { id = newId });
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpPut("{id}", Name = "UpdateProduct")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateProduct(int id, [FromBody] UpdateProductDTO productDTO)
+        public async Task<ActionResult> UpdateProduct(int id,int storeId, [FromBody] UpdateProductDTO productDTO, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || productDTO == null||productDTO.ProductPrice<=0||productDTO.StockQuantity<0) return BadRequest("Invalid Data");
 
             
             if (!await _product.IsExist(id)) return NotFound($"No product with id {id}");
+
+
+            var authResult = await authorizationService.AuthorizeAsync(
+                User,
+                storeId,
+                "StoreOwnerOrAdmin");
+
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
 
             if (await _product.UpdateProduct(id,productDTO)) return Ok();
             return BadRequest("Failed to update product");

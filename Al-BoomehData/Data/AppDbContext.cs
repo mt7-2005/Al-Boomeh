@@ -60,6 +60,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<RefreshToken>().Property(x => x.RowVersion).IsRowVersion();
+
         modelBuilder.Entity<Address>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Address__3214EC0753917CDC");
@@ -314,6 +316,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.OrderCode, "CK_Unique_OrderCode").IsUnique();
 
+            entity.HasIndex(e=>e.IdempotencyKey).IsUnique();
+
             entity.Property(e => e.AddressId).HasColumnName("AddressID");
             entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
             entity.Property(e => e.DeliveryFees).HasColumnType("decimal(18, 2)");
@@ -329,11 +333,14 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Tips).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.VoucherId).HasColumnName("VoucherID");
+            
 
             entity.HasOne(d => d.Address)
                 .WithMany(p => p.Orders)
                 .HasForeignKey(d => d.AddressId)
                 .HasConstraintName("FK_Order_Address");
+
+            
 
             entity.HasOne(d => d.Customer)
                 .WithMany(p => p.Orders)

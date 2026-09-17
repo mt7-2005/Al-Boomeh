@@ -3,6 +3,8 @@ using Al_BoomehServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using Al_BoomehServices.Interfaces;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -10,9 +12,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class ExtrasController : ControllerBase
     {
-        private readonly ExtrasService _extra;
+        private readonly IExtrasService _extra;
 
-        public ExtrasController(ExtrasService extra)
+        public ExtrasController(IExtrasService extra)
         {
             _extra = extra;
         }

@@ -15,4 +15,5 @@ public partial class RefreshToken
     public DateTime ExpiresAtUtc { get; set; }
 
     public DateTime? RefreshTokenRevokedAt { get; set; }
+    public byte[] RowVersion { get; set; }
 }

@@ -1,18 +1,25 @@
 ﻿using Al_Boomeh.Models;
+using Al_BoomehDAL.Interfaces;
 using Al_BoomehDAL.Models;
+using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
 using BCrypt.Net;
 using Konscious.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using static Al_BoomehServices.Services.OtpService;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -22,22 +29,24 @@ namespace Al_Boomeh.Controllers
     public class AuthController : ControllerBase
     {
         
-        private readonly UsersService _userService;
-        private readonly OtpService _otpSeervice;
-        private readonly RefreshTokenService _refreshTokesService;
+        private readonly IUsersService _userService;
+        private readonly IOtpService _otpSeervice;
+        private readonly IRefreshTokenService _refreshTokesService;
         private readonly IConfiguration _configuration;
+        private readonly ICurrentUser _currentUser;
 
-        public AuthController(UsersService usersService,OtpService otpService,RefreshTokenService refreshTokesService,IConfiguration configuration)
+        public AuthController(IUsersService usersService, IOtpService otpService, IRefreshTokenService refreshTokesService,IConfiguration configuration, ICurrentUser currentUser)
         {
             _otpSeervice = otpService;
             _refreshTokesService = refreshTokesService;
             _userService = usersService;
+            _currentUser = currentUser;
             _configuration = configuration;
         }
 
         [EnableRateLimiting("AuthLimiter")]
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] Al_Boomeh.Models.LoginRequest request)
         {
             
             var user =await _userService.GetUser(request.Email);
@@ -71,48 +80,12 @@ namespace Al_Boomeh.Controllers
                 return Unauthorized("Invalid credentials");
 
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-
-
-                new Claim(ClaimTypes.Email, user.Email),
-
-
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-
-            };
-
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Partner)
-            {
-                claims.Add(new Claim("storeId", user.StoreId.Value.ToString()));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-
-
-
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-
-            
-            var token = new JwtSecurityToken(
-                issuer: "Al-BoomehAPI",
-                audience: "Al-BoomehAPIUsers",
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(3),
-                signingCredentials: creds
-            );
-
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-
+            string accessToken = BuildAccessToken(user);
             var refreshToken = GenerateRefreshToken();
 
-           string tokedHash = BCrypt.Net.BCrypt.HashPassword(refreshToken);
            DateTime expirationDate = DateTime.UtcNow.AddDays(7);
 
-            await _refreshTokesService.SaveRefreshToken(user.Id, tokedHash, expirationDate);
+            await _refreshTokesService.SaveRefreshToken(user.Id, refreshToken, expirationDate);
 
             return Ok(new TokenResponse
             {
@@ -131,7 +104,7 @@ namespace Al_Boomeh.Controllers
             return Ok();
         }
 
-        [EnableRateLimiting("AuthLimiter")]
+        //[EnableRateLimiting("AuthLimiter")]
         [HttpPut("Verify")]
         public async Task<IActionResult> Verify(string phone, string code)
         {
@@ -144,52 +117,34 @@ namespace Al_Boomeh.Controllers
                 case OtpVerifyResult.NotFound:
                     return BadRequest(new { message = "Code expired or not found" });
                 case OtpVerifyResult.InvalidCode:
-                    return  BadRequest(new { message = "Invalid code" });
-
+                    return BadRequest(new { message = "Invalid code" });
+                case OtpVerifyResult.ToManyRequest:
+                    return StatusCode(429, new 
+                    {
+                        message= "To many request"
+                    });
+                case OtpVerifyResult.NotFoundCustomer:
+                    return Ok(new
+                    {
+                        message = "Phone verified. Registration required.",
+                        requiresRegistration = true
+                    });
             }
-          
+
+
+
             var user = await _userService.GetUserByPhone(phone);
 
-            var claims = new List<Claim>
-           {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            
 
-
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-
-            };
-
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Customer)
-            {
-
-                claims.Add(new Claim("customerId", user.CustomerId.Value.ToString()));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-
-
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-
-
-            var token = new JwtSecurityToken(
-                issuer: "Al-BoomehAPI",
-                audience: "Al-BoomehAPIUsers",
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
-                signingCredentials: creds
-            );
-
-
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
+            string accessToken = BuildAccessToken(user);
 
             var refreshToken = GenerateRefreshToken();
 
-            string tokedHash = BCrypt.Net.BCrypt.HashPassword(refreshToken);
+           
             DateTime expirationDate = DateTime.UtcNow.AddDays(7);
 
-            await _refreshTokesService.SaveRefreshToken(user.Id, tokedHash, expirationDate);
+            await _refreshTokesService.SaveRefreshToken(user.Id, refreshToken, expirationDate);
 
             return Ok(new TokenResponse
             {
@@ -202,163 +157,51 @@ namespace Al_Boomeh.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<UserDto?>> Me()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (_currentUser.UserId is null)
+                return Unauthorized();
 
-            if(userId == null)
-                return null;
-
-            var user=await _userService.GetUser(Guid.Parse(userId));
-
+            var user = await _userService.GetUser(_currentUser.UserId.Value);
             return Ok(user);
         }
 
+        
         [EnableRateLimiting("AuthLimiter")]
-        [HttpPost("refresh-staff")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshRequestStaff request)
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
         {
+            var stored = await _refreshTokesService.GetByRawToken(request.RefreshToken);
 
-            if (string.IsNullOrEmpty(request.Email))
-                return BadRequest("Invalid input");
-
-            var user=await _userService.GetUser(request.Email);
-
-            if (user == null)
-                return Unauthorized("Invalid refresh request");
-
-            var refreshToken = await _refreshTokesService.GetRefreshToken(user.Id);
-
-            if (refreshToken == null)
-                return Unauthorized("Refresh token is revoked");
-
-            if (refreshToken.RefreshTokenRevokedAt != null)
-                return Unauthorized("Refresh token is revoked");
-
-            if (refreshToken.ExpiresAtUtc <= DateTime.UtcNow)
-                return Unauthorized("Refresh token expired");
-
-            bool refreshValid = BCrypt.Net.BCrypt.Verify(request.RefreshToken, refreshToken.TokenHash);
-            if (!refreshValid)
+            if (stored is null)
                 return Unauthorized("Invalid refresh token");
 
-            var claims = new List<Claim>
+            if (stored.RefreshTokenRevokedAt != null)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
-            };
-
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Partner)
-            {
-                claims.Add(new Claim("storeId", user.StoreId.Value.ToString()));
+                // This exact token was already used once and rotated away.
+                // Someone is replaying a stolen token — kill every session for this user.
+               
+                
+                await _refreshTokesService.RevokeAllForUser(stored.UserId);
+                
+                return Unauthorized("This refresh token was already used. All sessions for this account have been signed out.");
             }
 
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Customer)
-            {
-
-                claims.Add(new Claim("customerId", user.CustomerId.Value.ToString()));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: "Al-BoomehAPI",
-                audience: "Al-BoomehAPIUsers",
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
-                signingCredentials: creds
-            );
-            var newAccessToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-            var newRefreshToken = GenerateRefreshToken();
-            string tokedHash = BCrypt.Net.BCrypt.HashPassword(newRefreshToken);
-            DateTime expirationDate = DateTime.UtcNow.AddDays(1);
-
-            await _refreshTokesService.Revoked(user.Id);
-
-            await _refreshTokesService.SaveRefreshToken(user.Id, tokedHash, expirationDate);
-
-            return Ok(new TokenResponse
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken
-            });
-        }
-
-        [EnableRateLimiting("AuthLimiter")]
-        [HttpPost("refresh-customer")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshRequestCustomer request)
-        {
-
-            if (string.IsNullOrEmpty(request.Phone))
-                return BadRequest("Invalid input");
-
-            var user=await _userService.GetUser(request.Phone);
-
-            if (user == null)
-                return Unauthorized("Invalid refresh request");
-
-            var refreshToken = await _refreshTokesService.GetRefreshToken(user.Id);
-
-            if (refreshToken == null)
-                return Unauthorized("Refresh token is revoked");
-
-            if (refreshToken.RefreshTokenRevokedAt != null)
-                return Unauthorized("Refresh token is revoked");
-
-            if (refreshToken.ExpiresAtUtc <= DateTime.UtcNow)
+            if (stored.ExpiresAtUtc <= DateTime.UtcNow)
                 return Unauthorized("Refresh token expired");
 
-            bool refreshValid = BCrypt.Net.BCrypt.Verify(request.RefreshToken, refreshToken.TokenHash);
-            if (!refreshValid)
-                return Unauthorized("Invalid refresh token");
+            var user = await _userService.GetUser(stored.UserId);
+            if (user is null)
+                return Unauthorized("Invalid refresh request");
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
-            };
+            string newAccessToken= BuildAccessToken(user);
 
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Partner)
-            {
-                claims.Add(new Claim("storeId", user.StoreId.Value.ToString()));
-            }
-
-            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Customer)
-            {
-
-                claims.Add(new Claim("customerId", user.CustomerId.Value.ToString()));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: "Al-BoomehAPI",
-                audience: "Al-BoomehAPIUsers",
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
-                signingCredentials: creds
-            );
-            var newAccessToken = new JwtSecurityTokenHandler().WriteToken(token);
-
+            // Rotate: kill this exact row, issue a brand new one.
+            await _refreshTokesService.RevokeById(stored.Id);
             var newRefreshToken = GenerateRefreshToken();
-            string tokedHash = BCrypt.Net.BCrypt.HashPassword(newRefreshToken);
-            DateTime expirationDate = DateTime.UtcNow.AddDays(1);
+            await _refreshTokesService.SaveRefreshToken(user.Id, newRefreshToken, DateTime.UtcNow.AddDays(7));
 
-            await _refreshTokesService.SaveRefreshToken(user.Id, tokedHash, expirationDate);
-
-            return Ok(new TokenResponse
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken
-            });
+            return Ok(new TokenResponse { AccessToken = newAccessToken, RefreshToken = newRefreshToken });
         }
+
         [HttpPost("logout-staff")]
         public async Task<IActionResult> Logout([FromBody] LogoutRequestStaff request)
         {
@@ -368,16 +211,14 @@ namespace Al_Boomeh.Controllers
 
             var user = await _userService.GetUser(request.Email);
 
-            var refreshToken = await _refreshTokesService.GetRefreshToken(user.Id);
+            var refreshToken = await _refreshTokesService.GetByRawToken(request.RefreshToken);
 
             if (refreshToken == null)
-                return Ok(); 
-
-            bool refreshValid = BCrypt.Net.BCrypt.Verify(request.RefreshToken, refreshToken.TokenHash);
-            if (!refreshValid)
                 return Ok();
 
-            await _refreshTokesService.Revoked(user.Id);
+            
+
+            await _refreshTokesService.RevokeById(refreshToken.Id);
             return Ok("Logged out successfully");
         }
         [HttpPost("logout-customer")]
@@ -389,16 +230,14 @@ namespace Al_Boomeh.Controllers
 
             var user = await _userService.GetUserByPhone(request.Phone);
 
-            var refreshToken = await _refreshTokesService.GetRefreshToken(user.Id);
+            var refreshToken = await _refreshTokesService.GetByRawToken(request.RefreshToken);
 
             if (refreshToken == null)
                 return Ok(); 
 
-            bool refreshValid = BCrypt.Net.BCrypt.Verify(request.RefreshToken, refreshToken.TokenHash);
-            if (!refreshValid)
-                return Ok();
+            
 
-            refreshToken.RefreshTokenRevokedAt = DateTime.UtcNow;
+            await _refreshTokesService.RevokeById(refreshToken.Id);
             return Ok("Logged out successfully");
         }
 
@@ -409,5 +248,29 @@ namespace Al_Boomeh.Controllers
             rng.GetBytes(bytes);
             return Convert.ToBase64String(bytes);
         }
+        private string BuildAccessToken(User user)
+        {
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Role, user.Role.ToString())
+    };
+            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Partner)
+                claims.Add(new Claim("storeId", user.StoreId!.Value.ToString()));
+            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Customer)
+                claims.Add(new Claim("customerId", user.CustomerId!.Value.ToString()));
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                issuer: "Al-BoomehAPI",
+                audience: "Al-BoomehAPIUsers",
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(15),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
     }
 }

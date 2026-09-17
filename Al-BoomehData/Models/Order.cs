@@ -55,7 +55,7 @@ public partial class Order:BaseEntity,IAuditable
     public string? Latitude { get; set; }
     public string? Longitude { get; set; }
     public double? Distance { get; set; }
-
+    public string IdempotencyKey { get; set; } = string.Empty;
     public virtual Address? Address { get; set; }
 
     public virtual Customer Customer { get; set; } = null!;

@@ -1,8 +1,10 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+
 
 namespace Al_Boomeh.Controllers
 {
@@ -10,9 +12,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly CategoriesService _category;
+        private readonly ICategoriesService _category;
 
-        public CategoriesController(CategoriesService category)
+        public CategoriesController(ICategoriesService category)
         {
             _category = category;
         }

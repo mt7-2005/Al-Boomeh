@@ -92,14 +92,14 @@ namespace Al_BoomehDAL.Classes
 
             return earthRadiusKm * c;
         }
-        private async Task<string> _CreateOrderCode(int orderId)
+        private string _CreateOrderCode(int orderId)
         {
             var random = new Random();
             int number = random.Next(10000, 100000);
             string date = DateTime.UtcNow.ToString("yyMM");
             string count = (orderId % 1000).ToString("D3");
             string code = date + number.ToString() + count;
-            if (await IsOrderExistByCode(code)) return await _CreateOrderCode(orderId);
+          //  if (await IsOrderExistByCode(code)) return await _CreateOrderCode(orderId);
 
             return code;
         }
@@ -281,7 +281,7 @@ namespace Al_BoomehDAL.Classes
             if (order == null) return null;
             return order;
         }
-        public async Task<int> CreateCart(CreateOrderCartDTO orderDTO)
+        public async Task<int> CreateCart(string idempotencyKey, CreateOrderCartDTO orderDTO)
         {
             using var transaction = await
     _context.Database.BeginTransactionAsync();
@@ -291,6 +291,10 @@ namespace Al_BoomehDAL.Classes
                 _logger.LogWarning("CreateCart rejected: order or line data was null");
                 throw new NotFoundException($"CreateCart rejected: order or line data was null");
             }
+            var existingOrder = await _context.Orders
+        .FirstOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey);
+
+            if (existingOrder != null) throw new BusinessRuleException("Order already created ");
 
             try
             {
@@ -300,6 +304,8 @@ namespace Al_BoomehDAL.Classes
                     Status = (int)enStatus.Holding,
                     CreatedAtUtc=DateTime.UtcNow,
                     StoreId = orderDTO.StoreId,
+                    OrderCode=Guid.NewGuid().ToString(),
+                    IdempotencyKey=idempotencyKey
                 };
                  await _context.AddAsync(order);
                 var lineDto = orderDTO.OrderLines.First();
@@ -356,21 +362,32 @@ namespace Al_BoomehDAL.Classes
                 _logger.LogWarning("Place order failed , empty data");
                 throw new ValidationException(errors);
             }
-            var order = await _context.Orders
+            using var transaction = await
+           _context.Database.BeginTransactionAsync();
+            try
+            {
+                string code = _CreateOrderCode(orderId);
+
+                var order = await _context.Orders
                 .Where(o => o.Id == orderId && o.Status == (int)enStatus.Holding)
+                .Where(o=>o.OrderCode!=code)
                 .FirstOrDefaultAsync();
-            // var lines = order.OrderLines;
-            var lines = await _context.OrderLines
+
+
+                if (order == null) throw new BusinessRuleException($"Failed to place order");
+
+                var lines = await _context.OrderLines
                  .Where(l => l.OrderId == order.Id)
-                 .Select(o => o).ToListAsync();
-            if (lines == null || lines.Count == 0)
+                 .Select(o => o)
+                 .OrderBy(o => o.Id)
+                 .ToListAsync();
+                 if (lines == null || lines.Count == 0)
             {
                 errors["OrderLines"] = ["empty data"];
                 _logger.LogWarning("Place order failed , empty data");
                 throw new ValidationException(errors);
             }
-            using var transaction = await
-               _context.Database.BeginTransactionAsync();
+        
 
             decimal total = 0;
             if (order==null) throw new NotFoundException($"Order not found with id {orderId}");
@@ -389,9 +406,8 @@ namespace Al_BoomehDAL.Classes
                  .FirstOrDefaultAsync(s => s.Id == order.StoreId);
             if (store == null) throw new NotFoundException("Store not found");
 
-            try
-            {
-                order.OrderCode = await _CreateOrderCode(orderId);
+
+                order.OrderCode = code;
                 order.OrderType = (int)orderDTO.Type;
                 foreach (var line in lines)
                 {
@@ -407,8 +423,18 @@ namespace Al_BoomehDAL.Classes
                         _logger.LogWarning("Place order failed ,product out of stock");
                         throw new ValidationException(errors);
                     }
-                    product.StockQuantity-=(long)line.Quantity;
-                    product.IsOutOfStock = (product.StockQuantity == 0);
+                    var affectedRows = await _context.Products
+                       .Where(p => p.Id == product.Id && p.StockQuantity > 0)
+                       .ExecuteUpdateAsync(setters => setters
+                       .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
+                       .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));
+                    if (affectedRows == 0)
+                    {
+                        errors["Product"] = ["product out of stock"];
+                        _logger.LogWarning("Place order failed ,product out of stock");
+                        throw new ValidationException(errors);
+                    }
+                        
                 }
 
                 order.PaymentMethod = (int)orderDTO.PaymentMethod;
@@ -462,12 +488,20 @@ namespace Al_BoomehDAL.Classes
                     return true;
                 }
             }
-            catch
+            catch (ValidationException ex)
+            {
+                var errorsText = string.Join("; ", ex.Errors.Select(kv =>
+                    $"{kv.Key}: {string.Join(", ", kv.Value)}"));
+
+                _logger.LogWarning(ex, "Validation failed on : {Errors}", errorsText);
+                await transaction.RollbackAsync();
+              
+            }
+            catch (Exception e)
             {
                 await transaction.RollbackAsync();
-                _logger.LogWarning("Failed to place order with id {OrderId} ",
-                    order.Id);
-                throw new BusinessRuleException("Failed to place order");
+                
+                throw new BusinessRuleException("Failed to place order "+e);
             }
             return false;
         }
