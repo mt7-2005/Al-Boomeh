@@ -27,10 +27,18 @@ Log in as Customer A. Use A's valid token to fetch Customer B's order by id. Exp
 
 > If you get B's data — that's the single most common real-world API breach. Fix it before moving on.
 
-- **Input:** Customer A `Id=1` / Customer B `Id=2`
-- **Endpoint:** `https://localhost:7027/api/Customers/1/get-customers-orders?pageNumber=1&pageSize=3`
+- **Input:** Customer A `Id=5` / Customer B `Id=6`
+- **Endpoint:** `https://localhost:7027/api/Customers/5/get-customers-orders?pageNumber=1&pageSize=3`
 - **Response (A):** `200` ✅
 - **Response (B):** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Addresses/6` this for another customer - **Response:** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Customers/6 -- PUT`- **Response :** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Orders -- POST`  - **Response :** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Customers/6/fav-stores --GET` - **Response :** `403` ✅
+
+
+
+
 
 ---
 
@@ -72,6 +80,8 @@ Let an access token expire, then call a protected endpoint. Expect `401`. Then u
 ## 8. Refresh Token Reuse (Rotation Check)
 Reuse a refresh token you already rotated away. Expect rejection and the whole chain revoked.
 
+**Endpoint:**`https://localhost:7027/api/Auth/refresh`
+**response body :**This refresh token was already used. All sessions for this account have been signed out.
 - **Response:** `401` ✅
 
 ---

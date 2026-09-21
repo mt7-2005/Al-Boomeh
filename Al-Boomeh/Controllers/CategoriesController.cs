@@ -22,11 +22,11 @@ namespace Al_Boomeh.Controllers
         [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllCategories")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<CategoryInfoDTO>>> GetAllCategories(int pagenumber, int pagesize)
+        public async Task<ActionResult<List<CategoryInfoDTO>>> GetAllCategories(int pageNumber, int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0|| pageSize>1000) return BadRequest("Invalid Data");
 
-            var categoriesList = await _category.GetAllCategories(pagenumber, pagesize);
+            var categoriesList = await _category.GetAllCategories(pageNumber, pageSize);
             if (categoriesList == null || categoriesList.Count == 0) return NotFound("No Categories Found");
             return Ok(categoriesList);
         }

@@ -45,11 +45,11 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByStore(int storeId,[FromQuery] int pagenumber,[FromQuery] int pagesize)
+        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByStore(int storeId,[FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-            if (storeId <= 0 || pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
-            var productsList = await _product.GetProductsByStore(storeId, pagenumber, pagesize);
+            var productsList = await _product.GetProductsByStore(storeId, pageNumber, pageSize);
             if (productsList == null || productsList.Count == 0) return NotFound("No products found");
             return Ok(productsList);
         }

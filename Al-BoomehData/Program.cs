@@ -16,7 +16,8 @@ var connectionString = configuration.GetConnectionString("DefaultConnection");
 var services = new ServiceCollection();
 
 services.AddScoped<IAuditScope, AuditScope>();
-services.AddSingleton<AuditingSaveChangesInterceptor>();
+services.AddScoped<AuditingSaveChangesInterceptor>();
+
 // قبل AddDbContext
 services.AddScoped<ICurrentUser, SystemCurrentUser>();
 

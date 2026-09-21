@@ -22,11 +22,11 @@ namespace Al_Boomeh.Controllers
         [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllDrivers")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<DriverInfoDTO>>> GetAllDrivers(int pagenumber, int pagesize)
+        public async Task<ActionResult<List<DriverInfoDTO>>> GetAllDrivers(int pageNumber, int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
-            var driversList = await _driver.GetAllDrivers(pagenumber, pagesize);
+            var driversList = await _driver.GetAllDrivers(pageNumber, pageSize);
             if (driversList == null || driversList.Count == 0) return NotFound("No Drivers Found");
             return Ok(driversList);
         }
@@ -60,11 +60,11 @@ namespace Al_Boomeh.Controllers
         [HttpGet("{vehicleType}/{pagenumber}/{pagesize}", Name = "GetDriversByVehicleType")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<DriverInfoDTO>>> GetDriversByVehicleType(enVehicleType vehicleType, int pagenumber, int pagesize)
+        public async Task<ActionResult<List<DriverInfoDTO>>> GetDriversByVehicleType(enVehicleType vehicleType, int pageNumber, int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
-            var driversList = await _driver.GetDriversByVehicleType(vehicleType, pagenumber, pagesize);
+            var driversList = await _driver.GetDriversByVehicleType(vehicleType, pageNumber, pageSize);
             if (driversList == null || driversList.Count == 0) return NotFound("No Drivers Found");
             return Ok(driversList);
         }
