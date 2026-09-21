@@ -8,7 +8,7 @@ using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehDAL.Classes
 {
-    public class CategoryService: ICategoriesService
+    public class CategoryService: ICategoryService
     {
         private readonly AppDbContext _context;
 

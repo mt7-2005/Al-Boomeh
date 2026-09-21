@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IExtrasService
+    public interface IProductOptionService
     {
         Task<List<ExtraInfoDTO>> GetAllExtras(int pagenumber, int pagesize);
         Task<bool> IsExist(int id);

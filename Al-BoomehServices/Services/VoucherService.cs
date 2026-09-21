@@ -11,7 +11,7 @@ using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehDAL.Classes
 {
-    public class VoucherService: IVouchersService
+    public class VoucherService: IVoucherService
     {
         private readonly AppDbContext _context;
         

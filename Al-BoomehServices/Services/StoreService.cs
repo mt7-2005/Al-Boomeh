@@ -17,7 +17,7 @@ namespace Al_BoomehDAL.Classes
         Open,
         Busy,
     }
-    public class StoreService: IStoresService
+    public class StoreService: IStoreService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<StoreService> _logger;

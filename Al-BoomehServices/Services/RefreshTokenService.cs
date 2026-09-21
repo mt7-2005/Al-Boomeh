@@ -26,7 +26,6 @@ namespace Al_BoomehServices.Services
                 UserId = userId,
                 TokenHash = HashToken(rawRefreshToken),
                 ExpiresAtUtc = expirationDate,
-                CreatedAtUtc = DateTime.UtcNow
             };
 
             await _context.AddAsync(token);

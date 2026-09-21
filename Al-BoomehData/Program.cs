@@ -1,9 +1,10 @@
-﻿using Al_BoomehDAL.Models;
-using Al_BoomehDAL.Data;
+﻿using Al_BoomehDAL.Data;
+using Al_BoomehDAL.Interfaces;
+using Al_BoomehDAL.Models;
 using Al_BoomehDAL.Seeding;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -14,8 +15,10 @@ var connectionString = configuration.GetConnectionString("DefaultConnection");
 
 var services = new ServiceCollection();
 
-services.AddSingleton<IAuditScope, AuditScope>();
+services.AddScoped<IAuditScope, AuditScope>();
 services.AddSingleton<AuditingSaveChangesInterceptor>();
+// قبل AddDbContext
+services.AddScoped<ICurrentUser, SystemCurrentUser>();
 
 services.AddDbContext<AppDbContext>((sp, options) =>
 {

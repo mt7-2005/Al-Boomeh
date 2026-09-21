@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IProductsService
+    public interface IProductService
     {
         Task<bool> IsExist(int id);
         Task<List<ProductInfoDTO>?> GetProductsByStore(int storeId, int pagenumber, int pagesize);

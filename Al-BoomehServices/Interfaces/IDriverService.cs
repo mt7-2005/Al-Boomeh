@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IDriversService
+    public interface IDriverService
     {
         Task<List<DriverInfoDTO>> GetAllDrivers(int pagenumber, int pagesize);
         Task<bool> IsExist(int id);

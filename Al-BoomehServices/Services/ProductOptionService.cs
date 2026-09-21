@@ -11,7 +11,7 @@ using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehDAL.Classes
 {
-    public class ProductOptionService: IExtrasService
+    public class ProductOptionService: IProductOptionService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<ProductOptionService> _logger;

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Interfaces
 {
-    public interface ICustomersService
+    public interface ICustomerService
     {
         Task<bool> IsExist(int id);
         Task<int> CreateCustomer(CreateCustomerDTO dto);

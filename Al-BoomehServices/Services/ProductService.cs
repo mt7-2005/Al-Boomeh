@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace Al_BoomehDAL.Classes
 {
    
-    public class ProductService: IProductsService
+    public class ProductService: IProductService
     {
         private readonly AppDbContext _context;
         private readonly IAuditScope _auditScope;

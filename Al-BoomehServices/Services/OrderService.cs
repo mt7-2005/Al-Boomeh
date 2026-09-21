@@ -67,12 +67,14 @@ namespace Al_BoomehDAL.Classes
         }
         private static readonly Dictionary<enStatus, enStatus[]> AllowedTransitions = new()
         {
-            [enStatus.Pending] = new[] { enStatus.Accepted, enStatus.Cancelled },
-            [enStatus.Accepted] = new[] { enStatus.Preparing, enStatus.Cancelled },
+            [enStatus.Holding] = new[] { enStatus.Pending },
+            [enStatus.Pending] = new[] { enStatus.Accepted, enStatus.Decline },
+            [enStatus.Accepted] = new[] { enStatus.Preparing },
             [enStatus.Preparing] = new[] { enStatus.OutForDelivery },
             [enStatus.OutForDelivery] = new[] { enStatus.Delivered },
             [enStatus.Delivered] = Array.Empty<enStatus>(),
             [enStatus.Cancelled] = Array.Empty<enStatus>(),
+            [enStatus.Decline] = Array.Empty<enStatus>(),
         };
         private double _CalculateDistance(double lat1, double lon1, double lat2, double lon2)
         {
@@ -302,7 +304,6 @@ namespace Al_BoomehDAL.Classes
                 {
                     CustomerId= orderDTO.CustomerId,
                     Status = (int)enStatus.Holding,
-                    CreatedAtUtc=DateTime.UtcNow,
                     StoreId = orderDTO.StoreId,
                     OrderCode=Guid.NewGuid().ToString(),
                     IdempotencyKey=idempotencyKey
@@ -369,9 +370,11 @@ namespace Al_BoomehDAL.Classes
                 string code = _CreateOrderCode(orderId);
 
                 var order = await _context.Orders
-                .Where(o => o.Id == orderId && o.Status == (int)enStatus.Holding)
-                .Where(o=>o.OrderCode!=code)
-                .FirstOrDefaultAsync();
+                 .Where(o => o.Id == orderId &&
+                             o.Status == (int)enStatus.Holding)
+                 .Where(o => !_context.Orders
+                     .Any(o2 => o2.OrderCode == code))
+                 .FirstOrDefaultAsync();
 
 
                 if (order == null) throw new BusinessRuleException($"Failed to place order");
@@ -424,7 +427,7 @@ namespace Al_BoomehDAL.Classes
                         throw new ValidationException(errors);
                     }
                     var affectedRows = await _context.Products
-                       .Where(p => p.Id == product.Id && p.StockQuantity > 0)
+                       .Where(p => p.Id == product.Id && p.StockQuantity >(long)line.Quantity)
                        .ExecuteUpdateAsync(setters => setters
                        .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
                        .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));
@@ -538,8 +541,6 @@ namespace Al_BoomehDAL.Classes
                             (allowedTargets.Length == 0 ? "none — this is a final status." : string.Join(", ", allowedTargets)));
                     }
                 }
-
-               bool allowed = AllowedTransitions[currentStatus].Contains(targetStatus);
                 
 
                 var orderstatushistory = new OrderStatusHistory
@@ -610,7 +611,6 @@ namespace Al_BoomehDAL.Classes
             order.EstimatedPreparingTime=orderTimeDTO.EstimatedPreparingTime;
             order.EstimatedDeliveryTime=orderTimeDTO.EstimatedDeliveryTime;
             order.ActualReceivingTime = orderTimeDTO.ActualReceivingTime;
-            order.UpdatedAtUtc=DateTime.UtcNow;
 
             using (_auditScope.Enable())
             {

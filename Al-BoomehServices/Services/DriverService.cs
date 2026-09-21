@@ -17,7 +17,7 @@ namespace Al_BoomehDAL.Classes
         Car,
         Bicycle
     }
-    public class DriversService: IDriversService
+    public class DriversService: IDriverService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<DriversService> _logger;

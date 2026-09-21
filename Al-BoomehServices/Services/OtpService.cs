@@ -54,7 +54,7 @@ namespace Al_BoomehServices.Services
                 int row = await _context.SaveChangesAsync();
                 if (row > 0)
                 {
-                    await _smsSender.SendAsync(phone, $"The code was sent ");
+                    await _smsSender.SendAsync(phone, $"The OTP :{newOtp.Code}");
                 }
             
         }

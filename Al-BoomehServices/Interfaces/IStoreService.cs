@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IStoresService
+    public interface IStoreService
     {
         Task<bool> IsExist(int id);
         Task<List<StoreInfoDTO>?> GetAllStores(int pagenumber, int pagesize);

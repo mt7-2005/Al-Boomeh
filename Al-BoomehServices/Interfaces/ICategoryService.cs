@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Interfaces
 {
-    public interface ICategoriesService
+    public interface ICategoryService
     {
         Task<List<CategoryInfoDTO>> GetAllCategories(int pagenumber, int pagesize);
         Task<CategoryInfoDTO?> GetCategoryById(int categoryId);

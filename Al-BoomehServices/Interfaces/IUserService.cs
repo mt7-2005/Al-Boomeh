@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IUsersService
+    public interface IUserService
     {
         Task<User?> GetUser(string email);
         Task<User?> GetUser(int customerId);

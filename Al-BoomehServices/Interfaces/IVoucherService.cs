@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Interfaces
 {
-    public interface IVouchersService
+    public interface IVoucherService
     {
         Task<int> AddVoucherToCustomer(VoucherDTO voucherDTO);
         Task<bool> IsExist(string code);

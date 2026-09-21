@@ -363,6 +363,9 @@ public partial class AppDbContext : DbContext
                 .WithMany(p => p.Orders)
                 .HasForeignKey(d => d.VoucherId)
                 .HasConstraintName("FK_Order_Voucher");
+
+           
+
         });
 
         modelBuilder.Entity<OrderFeedback>(entity =>

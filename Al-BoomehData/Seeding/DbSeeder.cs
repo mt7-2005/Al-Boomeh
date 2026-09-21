@@ -40,6 +40,7 @@ namespace Al_BoomehDAL.Seeding
             table.Columns.Add("PaymentMethod", typeof(int));
             table.Columns.Add("Latitude", typeof(string));
             table.Columns.Add("Longitude", typeof(string));
+            table.Columns.Add("IdempotencyKey",typeof(string));
             table.Columns.Add("Distance", typeof(double));
             table.Columns.Add("CreatedAtUtc", typeof(DateTime));
             table.Columns.Add("IsDeleted", typeof(bool));
@@ -70,6 +71,7 @@ namespace Al_BoomehDAL.Seeding
                 row["PaymentMethod"] = order.PaymentMethod;
                 row["Latitude"] = order.Latitude ?? (object)DBNull.Value;
                 row["Longitude"] = order.Longitude ?? (object)DBNull.Value;
+                row["IdempotencyKey"] = Guid.NewGuid().ToString();
                 row["Distance"] = order.Distance ?? (object)DBNull.Value;
                 row["CreatedAtUtc"] = order.CreatedAtUtc;
                 row["IsDeleted"]  = false;
@@ -193,25 +195,24 @@ namespace Al_BoomehDAL.Seeding
             Console.WriteLine("Starting reseed...");
             var totalSw = Stopwatch.StartNew();
 
-           
-                //await WipeAllAsync();
 
-                //await SeedCategoriesAsync();
-                //await SeedStoresAsync();
-                //await SeedCustomersAsync();
-                await SeedUsersAsync();
-                //await SeedProductsAsync();
+            await WipeAllAsync();
 
-
-                ////  await _context.SaveChangesAsync();
-                //await SeedAddressesAsync();
+            await SeedCategoriesAsync();
+            await SeedStoresAsync();
+            await SeedCustomersAsync();
+            await SeedUsersAsync();
+            await SeedProductsAsync();
 
 
+            await SeedAddressesAsync();
 
-                //await SeedOrdersWithLinesAndHistoryAsync();
 
 
-            
+            await SeedOrdersWithLinesAndHistoryAsync();
+
+
+
             totalSw.Stop();
             PrintTimingReport(totalSw.ElapsedMilliseconds);
         }

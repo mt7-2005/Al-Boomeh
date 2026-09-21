@@ -17,7 +17,7 @@ namespace Al_BoomehDAL.Classes
         Active=1,
         Blocked=2
     }
-    public class CustomerService: ICustomersService
+    public class CustomerService: ICustomerService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<CustomerService> _logger;
