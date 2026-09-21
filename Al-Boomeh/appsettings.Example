@@ -1,0 +1,21 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Database connection"
+  },
+  "Jwt": {
+    "Key": "Jwt Key"
+  },
+  "OrderSettings": {
+    "ServiceFees": 0.40,
+    "DeliveryFees": 0.15
+  },
+
+  "AllowedHosts": "*"
+}

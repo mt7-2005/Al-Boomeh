@@ -12,9 +12,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly ICategoriesService _category;
+        private readonly ICategoryService _category;
 
-        public CategoriesController(ICategoriesService category)
+        public CategoriesController(ICategoryService category)
         {
             _category = category;
         }

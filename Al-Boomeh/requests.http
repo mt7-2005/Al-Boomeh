@@ -1,0 +1,94 @@
+@baseUrl = https://localhost:7027
+
+### ========================================
+### 1. Admin Login
+### ========================================
+
+# @name adminLogin
+POST {{baseUrl}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "mohamad.kisswani@al-boomeh.com",
+  "password": "123456"
+}
+
+###
+
+@adminToken = {{adminLogin.response.body.$.accessToken}}
+
+### ========================================
+### 2. Get Stores
+### ========================================
+
+GET {{baseUrl}}/api/Stores/All?pagenumber=5&pagesize=10
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### 3. Request Customer OTP
+### ========================================
+
+POST {{baseUrl}}/api/Auth/RequestOtp?phone=0791482276
+
+### ========================================
+### 4. Verify Customer OTP
+### ========================================
+
+# Get the OTP from the API logs and replace the value below.
+
+# @name customerVerify
+POST {{baseUrl}}/api/Auth/Verify?phone=0791482276&code=362270
+
+###
+
+@customerToken = {{customerVerify.response.body.$.accessToken}}
+
+### ========================================
+### 5. Create Customer Order
+### ========================================
+
+# @name createOrder
+POST {{baseUrl}}/api/Orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "customerId": 7,
+  "storeId": 7,
+  "orderLines": [
+    {
+      "id": 0,
+      "customerId": 7,
+      "productId": 7,
+      "quantity": 1,
+      "notes": "string",
+      "extraId": 0
+    }
+  ]
+}
+
+###
+
+@orderId = {{createOrder.response.body.$.id}}
+
+### ========================================
+### 6. Place Order
+### ========================================
+
+PUT {{baseUrl}}/api/Orders?id={{orderId}}
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "type": 0,
+  "paymentMethod": 1,
+  "customerId": 7,
+  "addressId": 0,
+  "tips": 0,
+  "storeNotes": "string",
+  "driverNotes": "string",
+  "latitude": "string",
+  "longitude": "string",
+  "voucherCode": "string",
+  "driverInstructions": "string"
+}

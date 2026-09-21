@@ -12,9 +12,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class DriversController : ControllerBase
     {
-        private readonly IDriversService _driver;
+        private readonly IDriverService _driver;
 
-        public DriversController(IDriversService driver)
+        public DriversController(IDriverService driver)
         {
             _driver = driver;
         }

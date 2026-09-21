@@ -10,11 +10,11 @@ namespace Al_Boomeh.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ExtrasController : ControllerBase
+    public class ProductOptionsController : ControllerBase
     {
-        private readonly IExtrasService _extra;
+        private readonly IProductOptionService _extra;
 
-        public ExtrasController(IExtrasService extra)
+        public ProductOptionsController(IProductOptionService extra)
         {
             _extra = extra;
         }

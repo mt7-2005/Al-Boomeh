@@ -12,9 +12,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class VouchersController : ControllerBase
     {
-        private readonly IVouchersService _voucher;
+        private readonly IVoucherService _voucher;
 
-        public VouchersController(IVouchersService voucher)
+        public VouchersController(IVoucherService voucher)
         {
             _voucher = voucher;
         }

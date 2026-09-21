@@ -15,8 +15,8 @@ namespace Al_BoomehAPI.Controllers
     public class AddressesController : ControllerBase
     {
         private readonly IAddressService _addressService;
-        private readonly IUsersService _usersService;
-        public AddressesController(IAddressService address, IUsersService usersService)
+        private readonly IUserService _usersService;
+        public AddressesController(IAddressService address, IUserService usersService)
         {
             _usersService=usersService;
             _addressService = address;

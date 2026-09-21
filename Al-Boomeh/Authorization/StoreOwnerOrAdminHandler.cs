@@ -8,8 +8,8 @@ using System.Security.Claims;
 public class StoreOwnerOrAdminHandler
     : AuthorizationHandler<StoreOwnerOrAdminRequirement, int>
 {
-    private readonly IUsersService _usersService;
-    public StoreOwnerOrAdminHandler(IUsersService usersService)
+    private readonly IUserService _usersService;
+    public StoreOwnerOrAdminHandler(IUserService usersService)
     {
         _usersService = usersService;
     }

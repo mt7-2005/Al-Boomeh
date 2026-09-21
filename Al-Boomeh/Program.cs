@@ -6,9 +6,13 @@ using Al_BoomehDAL.Classes;
 using Al_BoomehDAL.Data;
 using Al_BoomehDAL.Interfaces;
 using Al_BoomehDAL.Models;
+using Al_BoomehDAL.Seeding;
 using Al_BoomehServices;
 using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
+using Al_BoomehServices.Validators;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,9 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
-using FluentValidation;
 using System.Threading.RateLimiting;
-using Al_BoomehServices.Validators;
 using static Al_Boomeh.Controllers.OrdersController;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -148,6 +150,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<AppValidators>();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 builder.Services.AddScoped<AuditingSaveChangesInterceptor>();
 builder.Services.AddScoped<ISmsSender, SmsSender>();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
@@ -161,17 +166,17 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     }
 });
 
-builder.Services.AddScoped<ICategoriesService, CategoryService>();
-builder.Services.AddScoped<IUsersService, UserService>();
-builder.Services.AddScoped<ICustomersService, CustomerService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
-builder.Services.AddScoped<IDriversService, DriversService>();
-builder.Services.AddScoped<IExtrasService, ProductOptionService>();
-builder.Services.AddScoped<IProductsService, ProductService>();
-builder.Services.AddScoped<IStoresService, StoreService>();
-builder.Services.AddScoped<IVouchersService, VoucherService>();
+builder.Services.AddScoped<IDriverService, DriversService>();
+builder.Services.AddScoped<IProductOptionService, ProductOptionService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 var app = builder.Build();
 

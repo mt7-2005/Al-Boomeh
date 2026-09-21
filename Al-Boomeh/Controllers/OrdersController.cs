@@ -20,8 +20,8 @@ namespace Al_Boomeh.Controllers
     {
         private readonly IOrderService _order;
         private readonly IConfiguration _configuration;
-        private readonly IUsersService _usersService;
-        public OrdersController(IOrderService order,IConfiguration configuration, IUsersService usersService)
+        private readonly IUserService _usersService;
+        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService)
         {
             _usersService= usersService;
             _configuration = configuration;
@@ -380,7 +380,7 @@ namespace Al_Boomeh.Controllers
             int newId = await _order.AddLineToCart(id, lineDTO);
             if (newId != -1)
             {
-                return CreatedAtAction(nameof(GetLineFromId),newId);
+                return CreatedAtAction(nameof(GetLineFromId), new { id = newId }, new { id = newId });
             }
             return BadRequest("failed to add line");
 
@@ -388,14 +388,14 @@ namespace Al_Boomeh.Controllers
 
 
         [Authorize(Roles = "Customer")]
-        [HttpDelete("{lineid}/{customerId}/delete-cart", Name = "DeleteLineCart")]
+        [HttpDelete("{lineId}/{customerId}/delete-cart", Name = "DeleteLineCart")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult> DeleteLineCart(int id,int customerId, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> DeleteLineCart(int lineId,int customerId, [FromServices] IAuthorizationService authorizationService)
         {
-            if (id < 0) return BadRequest("Invalid Data");
-            if (!await _order.IsOrderLineExist(id)) return NotFound($"No order line with id {id}");
+            if (lineId < 0) return BadRequest("Invalid Data");
+            if (!await _order.IsOrderLineExist(lineId)) return NotFound($"No order line with id {lineId}");
 
 
             var authResult = await authorizationService.AuthorizeAsync(
@@ -407,7 +407,7 @@ namespace Al_Boomeh.Controllers
             if (!authResult.Succeeded)
                 return Forbid();
 
-            if (await _order.DeleteLineFromCart(id)) return Ok();
+            if (await _order.DeleteLineFromCart(lineId)) return Ok();
             return BadRequest("failed to delete");
         }
 

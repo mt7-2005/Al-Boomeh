@@ -17,9 +17,9 @@ namespace Al_Boomeh.Controllers
     [ApiController]
     public class StoresController : ControllerBase
     {
-        private readonly IStoresService _store;
-        private readonly IUsersService _userService;
-        public StoresController(IStoresService store, IUsersService usersService)
+        private readonly IStoreService _store;
+        private readonly IUserService _userService;
+        public StoresController(IStoreService store, IUserService usersService)
         {
             _userService = usersService;
             _store = store;

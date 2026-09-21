@@ -29,15 +29,15 @@ namespace Al_Boomeh.Controllers
     public class AuthController : ControllerBase
     {
         
-        private readonly IUsersService _userService;
-        private readonly IOtpService _otpSeervice;
+        private readonly IUserService _userService;
+        private readonly IOtpService _otpService;
         private readonly IRefreshTokenService _refreshTokesService;
         private readonly IConfiguration _configuration;
         private readonly ICurrentUser _currentUser;
 
-        public AuthController(IUsersService usersService, IOtpService otpService, IRefreshTokenService refreshTokesService,IConfiguration configuration, ICurrentUser currentUser)
+        public AuthController(IUserService usersService, IOtpService otpService, IRefreshTokenService refreshTokesService,IConfiguration configuration, ICurrentUser currentUser)
         {
-            _otpSeervice = otpService;
+            _otpService = otpService;
             _refreshTokesService = refreshTokesService;
             _userService = usersService;
             _currentUser = currentUser;
@@ -100,17 +100,17 @@ namespace Al_Boomeh.Controllers
         {
             if (string.IsNullOrEmpty(phone)||phone.Length<10||!phone.All(char.IsDigit)) return BadRequest("Invalid input");
 
-            await _otpSeervice.Request(phone);
+            await _otpService.Request(phone);
             return Ok();
         }
 
-        //[EnableRateLimiting("AuthLimiter")]
+        [EnableRateLimiting("AuthLimiter")]
         [HttpPut("Verify")]
         public async Task<IActionResult> Verify(string phone, string code)
         {
             if (string.IsNullOrEmpty(phone) || phone.Length < 10 || !phone.All(char.IsDigit)) return BadRequest("Invalid input");
 
-            var result = await _otpSeervice.Verify(phone, code);
+            var result = await _otpService.Verify(phone, code);
 
             switch (result)
             {
@@ -161,7 +161,16 @@ namespace Al_Boomeh.Controllers
                 return Unauthorized();
 
             var user = await _userService.GetUser(_currentUser.UserId.Value);
-            return Ok(user);
+
+            if (user == null) return NotFound("User not found");
+
+            UserDto? userDto = new UserDto
+            {
+                CustomerId = user.CustomerId,
+                Role = user.Role,
+                StoreId = user.StoreId,
+            };
+            return Ok(userDto);
         }
 
         
