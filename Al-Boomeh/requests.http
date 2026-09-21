@@ -75,6 +75,8 @@ Content-Type: application/json
 ### 6. Place Order
 ### ========================================
 
+# Expect: 200
+
 PUT {{baseUrl}}/api/Orders?id={{orderId}}
 Authorization: Bearer {{customerToken}}
 Content-Type: application/json
@@ -92,3 +94,117 @@ Content-Type: application/json
   "voucherCode": "string",
   "driverInstructions": "string"
 }
+
+### ========================================
+### 7. Partner (Store) Login
+### ========================================
+
+# @name partnerLogin
+POST {{baseUrl}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "partner@al-boomeh.com",
+  "password": "123456"
+}
+
+###
+
+@partnerToken = {{partnerLogin.response.body.$.accessToken}}
+
+### ========================================
+### 8. Order Status -> Accepted (1)
+### ========================================
+
+# Expect: 200
+
+PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+Authorization: Bearer {{partnerToken}}
+Content-Type: application/json
+
+{
+  "status": 1,
+  "storeId": 0
+}
+
+### ========================================
+### 9. Order Status -> Preparing (2)
+### ========================================
+
+# Expect: 200
+
+PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+Authorization: Bearer {{partnerToken}}
+Content-Type: application/json
+
+{
+  "status": 2,
+  "storeId": 0
+}
+
+### ========================================
+### 10. Order Status -> OutForDelivery (3)
+### ========================================
+
+# Expect: 200
+
+PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+Authorization: Bearer {{partnerToken}}
+Content-Type: application/json
+
+{
+  "status": 3,
+  "storeId": 0
+}
+
+### ========================================
+### 11. Order Status -> Delivered (4)
+### ========================================
+
+# Expect: 200
+
+PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+Authorization: Bearer {{partnerToken}}
+Content-Type: application/json
+
+{
+  "status": 4,
+  "storeId": 0
+}
+
+### ========================================
+### 12. View Order Details (as Customer)
+### ========================================
+
+# Expect: 200, and the status in the response should be Delivered (4).
+
+GET {{baseUrl}}/api/Orders/{{orderId}}
+Authorization: Bearer {{customerToken}}
+
+### ========================================
+### 13. View Store Dashboard (as Partner)
+### ========================================
+
+# Expect: 200. Check that the delivered order is reflected in the numbers.
+
+GET {{baseUrl}}/api/Stores/5
+Authorization: Bearer {{partnerToken}}
+
+### ========================================
+### Security checks (optional, for docs/attack-log.md)
+### ========================================
+
+### S1. Customer tries to change order status. Expect: 403
+
+PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "status": 4,
+  "storeId": 0
+}
+
+### S2. Order details with no token. Expect: 401
+
+

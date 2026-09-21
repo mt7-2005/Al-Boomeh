@@ -24,7 +24,7 @@
 |View order count|—|Own store's|All|
 |View order historystatus|—|—|All|
 |Update product stock|—|Own store's|All|
-
+|Update OrderLines/Add|—|—|All
 
 
 

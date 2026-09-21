@@ -427,7 +427,7 @@ namespace Al_BoomehDAL.Classes
                         throw new ValidationException(errors);
                     }
                     var affectedRows = await _context.Products
-                       .Where(p => p.Id == product.Id && p.StockQuantity >(long)line.Quantity)
+                       .Where(p => p.Id == product.Id && p.StockQuantity >=(long)line.Quantity)
                        .ExecuteUpdateAsync(setters => setters
                        .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
                        .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));

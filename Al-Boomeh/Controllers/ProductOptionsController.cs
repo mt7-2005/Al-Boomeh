@@ -22,11 +22,11 @@ namespace Al_Boomeh.Controllers
         [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllExtras")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ExtraInfoDTO>>> GetAllExtras(int pagenumber, int pagesize)
+        public async Task<ActionResult<List<ExtraInfoDTO>>> GetAllExtras(int pageNumber, int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
-            var extrasList = await _extra.GetAllExtras(pagenumber, pagesize);
+            var extrasList = await _extra.GetAllExtras(pageNumber, pageSize);
             if (extrasList == null || extrasList.Count == 0) return NotFound("No Extras Found");
             return Ok(extrasList);
         }

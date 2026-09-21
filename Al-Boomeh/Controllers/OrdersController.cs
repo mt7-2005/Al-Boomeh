@@ -33,9 +33,11 @@ namespace Al_Boomeh.Controllers
         [HttpGet("All",Name ="GetAllOrders")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<OrderInfoDTO>>> GetAllOrders([FromQuery] int pagenumber,[FromQuery] int pagesize)
+        public async Task<ActionResult<List<OrderInfoDTO>>> GetAllOrders([FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-           var orderlist=await _order.GetAllOrders(pagenumber,pagesize);
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
+
+            var orderlist =await _order.GetAllOrders(pageNumber,pageSize);
             if (orderlist == null) return NotFound("No Orders Found");
             return Ok(orderlist);
         }

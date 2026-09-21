@@ -31,11 +31,11 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
 
-        public async Task<ActionResult<List<StoreInfoDTO>>> GetAllStores([FromQuery] int pagenumber,[FromQuery] int pagesize)
+        public async Task<ActionResult<List<StoreInfoDTO>>> GetAllStores([FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
-            var storesList = await _store.GetAllStores(pagenumber, pagesize);
+            var storesList = await _store.GetAllStores(pageNumber, pageSize);
             if (storesList == null || storesList.Count == 0) return NotFound("No Stores Found");
             return Ok(storesList);
         }
