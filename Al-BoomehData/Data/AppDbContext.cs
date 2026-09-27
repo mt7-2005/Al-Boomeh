@@ -53,6 +53,7 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Store> Stores { get; set; }
 
+    public virtual DbSet<DailyReport> DailyReports { get; set; }
     public virtual DbSet<StoreIssue> StoreIssues { get; set; }
 
     public virtual DbSet<Voucher> Vouchers { get; set; }

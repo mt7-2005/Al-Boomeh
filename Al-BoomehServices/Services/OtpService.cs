@@ -1,5 +1,6 @@
 ﻿using Al_BoomehDAL.Models;
 using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.Internal.Postgres;
 using System;
@@ -14,7 +15,7 @@ using System.Threading.Tasks;
 namespace Al_BoomehServices.Services
 {
    
-    public class OtpService: IOtpService
+    public class OtpService: IOtpService,ISendOTP
     {
         private readonly AppDbContext _context;
         private readonly ISmsSender _smsSender;
@@ -36,9 +37,9 @@ namespace Al_BoomehServices.Services
             var otp=await _context.OtpCodes
                 .Where(x => x.Phone == phone&&!x.IsUsed&&x.ExpiresAt>DateTime.UtcNow)
                 .FirstOrDefaultAsync();
+
             if (otp != null)
-                return;
-            
+                throw new BusinessRuleException($"Can't send another active code to the number {phone}");
             
                 string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
                 DateTime now= DateTime.UtcNow;

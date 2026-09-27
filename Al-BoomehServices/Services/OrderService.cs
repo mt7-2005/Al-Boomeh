@@ -3,6 +3,7 @@ using Al_BoomehDAL.Interfaces;
 using Al_BoomehDAL.Models;
 using Al_BoomehServices;
 using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -38,14 +39,14 @@ namespace Al_BoomehDAL.Classes
         FourStar,
         FiveStar
     }
-    public class OrderService:IOrderService
+    public class OrderService : IOrderService,ICancelAbandonedOrders
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OrderService> _logger;
         private readonly IAuditScope _auditScope;
         private readonly ICurrentUser _currentUser;
 
-        public OrderService(AppDbContext context, ILogger<OrderService> logger, ICurrentUser currentUser, IAuditScope auditScope )
+        public OrderService(AppDbContext context, ILogger<OrderService> logger, ICurrentUser currentUser, IAuditScope auditScope)
         {
             _logger = logger;
             _auditScope = auditScope;
@@ -55,7 +56,7 @@ namespace Al_BoomehDAL.Classes
         private int _CreateDriverCode()
         {
             Random random = new Random();
-            int number = random.Next(100, 1000);    
+            int number = random.Next(100, 1000);
             return number;
 
         }
@@ -80,7 +81,7 @@ namespace Al_BoomehDAL.Classes
         {
             const double earthRadiusKm = 6371.0;
 
-            double deltaPhi = (lat2 - lat1) * Math.PI / 180.0;
+            double deltaPhi= (lat2 - lat1) * Math.PI / 180.0;
             double deltaLambda = (lon2 - lon1) * Math.PI / 180.0;
 
             double phi1 = lat1 * Math.PI / 180.0;
@@ -101,19 +102,19 @@ namespace Al_BoomehDAL.Classes
             string date = DateTime.UtcNow.ToString("yyMM");
             string count = (orderId % 1000).ToString("D3");
             string code = date + number.ToString() + count;
-          //  if (await IsOrderExistByCode(code)) return await _CreateOrderCode(orderId);
+            //  if (await IsOrderExistByCode(code)) return await _CreateOrderCode(orderId);
 
             return code;
         }
-        public  async Task<List<OrderInfoDTO>>GetAllOrders(int pagenumber,int pagesize)
+        public async Task<List<OrderInfoDTO>> GetAllOrders(int pagenumber, int pagesize)
         {
-            var orderList =await _context.Orders
+            var orderList = await _context.Orders
                                     .Select(o => new OrderInfoDTO
                                     {
                                         Id = o.Id,
                                         CustomerId = o.CustomerId,
                                         AddressId = o.AddressId,
-                                       
+
                                         CreatedAt = o.CreatedAtUtc,
                                         DeliveryFees = o.DeliveryFees,
                                         ServiceFees = o.ServiceFees,
@@ -136,50 +137,50 @@ namespace Al_BoomehDAL.Classes
                                         ActualReceivingTime = o.ActualReceivingTime,
                                         Latitude = o.Latitude,
                                         Longitude = o.Longitude,
-                                        Distance=o.Distance,
-                                        OrderLines=o.OrderLines.Select(n=> new OrderLineDTO
+                                        Distance = o.Distance,
+                                        OrderLines = o.OrderLines.Select(n => new OrderLineDTO
                                         {
                                             Id = n.Id,
                                             ProductId = n.ProductId,
-                                            Quantity= n.Quantity,
+                                            Quantity = n.Quantity,
                                             ProductName = n.ProductName,
                                             Price = n.Price,
                                             Notes = n.Notes,
-                                            Total=n.Total,
-                                            ExtraId=n.ExtraId,
-                                            ExtraName=n.ExtraName,
-                                            ExtraPrice=n.ExtraPrice,
+                                            Total = n.Total,
+                                            ExtraId = n.ExtraId,
+                                            ExtraName = n.ExtraName,
+                                            ExtraPrice = n.ExtraPrice,
                                         }).ToList(),
-                                        OrderStatusHistory=o.OrderStatusHistories.Select(s=> new OrderStatusHistoryDTO
+                                        OrderStatusHistory = o.OrderStatusHistories.Select(s => new OrderStatusHistoryDTO
                                         {
-                                            OldStatus=(enStatus)s.OldStatus,
-                                            NewStatus=(enStatus)s.NewStatus,
+                                            OldStatus = (enStatus)s.OldStatus,
+                                            NewStatus = (enStatus)s.NewStatus,
                                         }).ToList()
-                                    }).OrderBy(o=>o.OrderCode)
-                                    .Skip((pagenumber-1)*pagesize)
+                                    }).OrderBy(o => o.OrderCode)
+                                    .Skip((pagenumber - 1) * pagesize)
                                     .Take(pagesize)
                                     .AsNoTracking()
                                     .ToListAsync();
-           
+
             return orderList;
         }
-        public  async Task<long> GetOrdersByStatus(enStatus Status,int storeId)
+        public async Task<long> GetOrdersByStatus(enStatus Status, int storeId)
         {
             var count = await _context.Orders
                                .AsNoTracking()
-                               .CountAsync(o => o.Status == (int)Status&&o.StoreId==storeId);
+                               .CountAsync(o => o.Status == (int)Status && o.StoreId == storeId);
             return count;
         }
-        public  async Task<OrderInfoDTO> GetOrderById(int orderId)
+        public async Task<OrderInfoDTO> GetOrderById(int orderId)
         {
             var order = await _context.Orders
-                               .Where(o => o.Id == orderId && o.Status!=(int)enStatus.Holding)
+                               .Where(o => o.Id == orderId && o.Status != (int)enStatus.Holding)
                                .Select(n => new OrderInfoDTO
                                {
                                    Id = n.Id,
                                    CustomerId = n.CustomerId,
                                    AddressId = n.AddressId,
-                                   
+
                                    CreatedAt = n.CreatedAtUtc,
                                    DeliveryFees = n.DeliveryFees,
                                    ServiceFees = n.ServiceFees,
@@ -202,10 +203,10 @@ namespace Al_BoomehDAL.Classes
                                    ActualReceivingTime = n.ActualReceivingTime,
                                    Latitude = n.Latitude,
                                    Longitude = n.Longitude,
-                                   Distance= n.Distance,
+                                   Distance = n.Distance,
                                    OrderStatusHistory = n.OrderStatusHistories.Select(s => new OrderStatusHistoryDTO
                                    {
-                                      
+
                                        OldStatus = (enStatus)s.OldStatus,
                                        NewStatus = (enStatus)s.NewStatus,
                                    }).ToList(),
@@ -214,7 +215,7 @@ namespace Al_BoomehDAL.Classes
                                        Id = x.Id,
                                        ProductId = x.ProductId,
                                        Quantity = x.Quantity,
-                                       ProductName= x.ProductName,
+                                       ProductName = x.ProductName,
                                        Price = x.Price,
                                        Notes = x.Notes,
                                        Total = x.Total,
@@ -222,7 +223,7 @@ namespace Al_BoomehDAL.Classes
                                        ExtraName = x.ExtraName,
                                        ExtraPrice = x.ExtraPrice,
                                    }).ToList()
-                                   
+
                                }).AsNoTracking().FirstOrDefaultAsync();
             if (order == null) return null;
 
@@ -230,7 +231,7 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<OrderInfoDTO> GetOrderByCode(string orderCode)
         {
-            var order =await _context.Orders.Where(o=> o.OrderCode==orderCode && o.Status!=(int)enStatus.Holding)
+            var order = await _context.Orders.Where(o => o.OrderCode == orderCode && o.Status != (int)enStatus.Holding)
                .Select(n => new OrderInfoDTO
                {
                    Id = n.Id,
@@ -275,7 +276,7 @@ namespace Al_BoomehDAL.Classes
                    }).ToList(),
                    OrderStatusHistory = n.OrderStatusHistories.Select(s => new OrderStatusHistoryDTO
                    {
-                      
+
                        OldStatus = (enStatus)s.OldStatus,
                        NewStatus = (enStatus)s.NewStatus,
                    }).ToList()
@@ -302,16 +303,16 @@ namespace Al_BoomehDAL.Classes
             {
                 var order = new Order
                 {
-                    CustomerId= orderDTO.CustomerId,
+                    CustomerId = orderDTO.CustomerId,
                     Status = (int)enStatus.Holding,
                     StoreId = orderDTO.StoreId,
-                    OrderCode=Guid.NewGuid().ToString(),
-                    IdempotencyKey=idempotencyKey
+                    OrderCode = Guid.NewGuid().ToString(),
+                    IdempotencyKey = idempotencyKey
                 };
-                 await _context.AddAsync(order);
+                await _context.AddAsync(order);
                 var lineDto = orderDTO.OrderLines.First();
-                var product =await _context.Products.AsNoTracking()
-                    .FirstOrDefaultAsync(p=> p.Id==lineDto.ProductId);
+                var product = await _context.Products.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == lineDto.ProductId);
                 if (product == null)
                 {
                     _logger.LogWarning("No product with id {ProductId}",
@@ -319,7 +320,7 @@ namespace Al_BoomehDAL.Classes
                     throw new NotFoundException($"No product with id {lineDto.ProductId}");
                 }
                 var exta = lineDto.ExtraId != null ? await _context.Extras.AsNoTracking()
-                    .FirstOrDefaultAsync(e => e.Id == lineDto.ExtraId) : null ;
+                    .FirstOrDefaultAsync(e => e.Id == lineDto.ExtraId) : null;
                 var line = new OrderLine
                 {
                     ProductId = lineDto.ProductId,
@@ -331,12 +332,12 @@ namespace Al_BoomehDAL.Classes
                     Quantity = lineDto.Quantity,
                     Notes = lineDto.Notes,
                     IsCart = true,
-                    Order=order,
-                    Total = (exta != null ? 
+                    Order = order,
+                    Total = (exta != null ?
                     ((product.ProductPrice + exta.Price.Value) * ((decimal)lineDto.Quantity)) :
                     ((decimal)lineDto.Quantity) * product.ProductPrice),
                 };
-                
+
                 await _context.AddAsync(line);
 
                 await _context.SaveChangesAsync();
@@ -352,7 +353,7 @@ namespace Al_BoomehDAL.Classes
             }
 
         }
-        public async Task<bool> PlaceOrder(int orderId,PlaceOrderDTO orderDTO,decimal deliveryfees=0,decimal servicefees=0)
+        public async Task<bool> PlaceOrder(int orderId, PlaceOrderDTO orderDTO, decimal deliveryfees = 0, decimal servicefees = 0)
         {
             var errors = new Dictionary<string, string[]>();
 
@@ -384,37 +385,37 @@ namespace Al_BoomehDAL.Classes
                  .Select(o => o)
                  .OrderBy(o => o.Id)
                  .ToListAsync();
-                 if (lines == null || lines.Count == 0)
-            {
-                errors["OrderLines"] = ["empty data"];
-                _logger.LogWarning("Place order failed , empty data");
-                throw new ValidationException(errors);
-            }
-        
-
-            decimal total = 0;
-            if (order==null) throw new NotFoundException($"Order not found with id {orderId}");
+                if (lines == null || lines.Count == 0)
+                {
+                    errors["OrderLines"] = ["empty data"];
+                    _logger.LogWarning("Place order failed , empty data");
+                    throw new ValidationException(errors);
+                }
 
 
-            order.SubTotal=lines.Sum(l=> l.Total);
+                decimal total = 0;
+                if (order == null) throw new NotFoundException($"Order not found with id {orderId}");
 
-            total += order.SubTotal.Value;
 
-            await _context.OrderLines
-                .Where(l => l.OrderId == orderId && l.IsCart)
-                .ExecuteUpdateAsync(setters =>
-                setters.SetProperty(s => s.IsCart , false));
+                order.SubTotal = lines.Sum(l => l.Total);
 
-            var store = await _context.Stores
-                 .FirstOrDefaultAsync(s => s.Id == order.StoreId);
-            if (store == null) throw new NotFoundException("Store not found");
+                total += order.SubTotal.Value;
+
+                await _context.OrderLines
+                    .Where(l => l.OrderId == orderId && l.IsCart)
+                    .ExecuteUpdateAsync(setters =>
+                    setters.SetProperty(s => s.IsCart, false));
+
+                var store = await _context.Stores
+                     .FirstOrDefaultAsync(s => s.Id == order.StoreId);
+                if (store == null) throw new NotFoundException("Store not found");
 
 
                 order.OrderCode = code;
                 order.OrderType = (int)orderDTO.Type;
                 foreach (var line in lines)
                 {
-                    var product =await _context.Products.FirstOrDefaultAsync(p => p.Id == line.ProductId);
+                    var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == line.ProductId);
                     if (product == null)
                     {
                         _logger.LogWarning("Place order failed ,product not found");
@@ -427,7 +428,7 @@ namespace Al_BoomehDAL.Classes
                         throw new ValidationException(errors);
                     }
                     var affectedRows = await _context.Products
-                       .Where(p => p.Id == product.Id && p.StockQuantity >=(long)line.Quantity)
+                       .Where(p => p.Id == product.Id && p.StockQuantity >= (long)line.Quantity)
                        .ExecuteUpdateAsync(setters => setters
                        .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
                        .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));
@@ -437,7 +438,7 @@ namespace Al_BoomehDAL.Classes
                         _logger.LogWarning("Place order failed ,product out of stock");
                         throw new ValidationException(errors);
                     }
-                        
+
                 }
 
                 order.PaymentMethod = (int)orderDTO.PaymentMethod;
@@ -446,43 +447,43 @@ namespace Al_BoomehDAL.Classes
 
                 total += order.Tax.Value;
 
-               
+
                 order.EstimatedPreparingTime = store.EstimatedPreparingTime;
                 order.Status = (int)enStatus.Pending;
                 if (orderDTO.VoucherCode != null)
                 {
                     var voucher = await _context.Vouchers
                         .Where(v => v.Code == orderDTO.VoucherCode).FirstOrDefaultAsync();
-                    if (voucher != null&&voucher.ExpirationDate>DateTime.UtcNow)
+                    if (voucher != null && voucher.ExpirationDate > DateTime.UtcNow)
                     {
                         order.Voucher = voucher.IsUsed == false ? voucher : null;
                         if (!voucher.IsUsed)
                         {
-                            total-=voucher.Amount;
+                            total -= voucher.Amount;
                         }
                         voucher.IsUsed = true;
                     }
                 }
-                    if (order.OrderType == (int)enOrderType.Delivery)
-                    {
-                        order.Tips = orderDTO.Tips;
-                        order.ServiceFees = servicefees * order.SubTotal;
-                        total += order.Tips.Value;
-                        total += order.ServiceFees.Value;
+                if (order.OrderType == (int)enOrderType.Delivery)
+                {
+                    order.Tips = orderDTO.Tips;
+                    order.ServiceFees = servicefees * order.SubTotal;
+                    total += order.Tips.Value;
+                    total += order.ServiceFees.Value;
                     // * total
-                        order.AddressId = orderDTO.AddressId;
-                        order.Distance = _CalculateDistance(
-                           Convert.ToDouble(store.Latitude), Convert.ToDouble(store.Longitude), Convert.ToDouble(orderDTO.Latitude), Convert.ToDouble(Convert.ToDouble(orderDTO.Longitude)));
-                        order.DeliveryFees = (decimal)order.Distance * deliveryfees;
-                        order.EstimatedDeliveryTime = (int)order.Distance * 3;
-                        order.DriverInstructions = orderDTO.DriverInstructions;
-                        order.DriverNotes = orderDTO.DriverNotes;
-                        order.Longitude = orderDTO.Longitude;
-                        order.Latitude = orderDTO.Latitude;
-                    }
-                order.TotalAmount=total;
-                
-                int roweffected= await _context.SaveChangesAsync();
+                    order.AddressId = orderDTO.AddressId;
+                    order.Distance = _CalculateDistance(
+                       Convert.ToDouble(store.Latitude), Convert.ToDouble(store.Longitude), Convert.ToDouble(orderDTO.Latitude), Convert.ToDouble(Convert.ToDouble(orderDTO.Longitude)));
+                    order.DeliveryFees = (decimal)order.Distance * deliveryfees;
+                    order.EstimatedDeliveryTime = (int)order.Distance * 3;
+                    order.DriverInstructions = orderDTO.DriverInstructions;
+                    order.DriverNotes = orderDTO.DriverNotes;
+                    order.Longitude = orderDTO.Longitude;
+                    order.Latitude = orderDTO.Latitude;
+                }
+                order.TotalAmount = total;
+
+                int roweffected = await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 if (roweffected > 0)
                 {
@@ -498,17 +499,17 @@ namespace Al_BoomehDAL.Classes
 
                 _logger.LogWarning(ex, "Validation failed on : {Errors}", errorsText);
                 await transaction.RollbackAsync();
-              
+
             }
             catch (Exception e)
             {
                 await transaction.RollbackAsync();
-                
-                throw new BusinessRuleException("Failed to place order "+e);
+
+                throw new BusinessRuleException("Failed to place order " + e);
             }
             return false;
         }
-        public async Task<bool> UpdateOrderStatus(int orderId,UpdateOrderStatusDTO statusdto)
+        public async Task<bool> UpdateOrderStatus(int orderId, UpdateOrderStatusDTO statusdto)
         {
 
 
@@ -541,7 +542,7 @@ namespace Al_BoomehDAL.Classes
                             (allowedTargets.Length == 0 ? "none — this is a final status." : string.Join(", ", allowedTargets)));
                     }
                 }
-                
+
 
                 var orderstatushistory = new OrderStatusHistory
                 {
@@ -554,9 +555,9 @@ namespace Al_BoomehDAL.Classes
 
                 if (statusdto.Status == enStatus.Cancelled || statusdto.Status == enStatus.Decline)
                 {
-                    var lines=await _context.OrderLines
-                        .Where(l=> l.OrderId==orderId)
-                        .Select(n=> new
+                    var lines = await _context.OrderLines
+                        .Where(l => l.OrderId == orderId)
+                        .Select(n => new
                         {
                             n.ProductId,
                             n.Quantity
@@ -565,13 +566,13 @@ namespace Al_BoomehDAL.Classes
                        .Where(l => l.OrderId == orderId)
                        .Select(o => o.Product)
                        .ToListAsync();
-                    
+
                     foreach (var product in products)
                     {
-                        var line = lines.Where(l=>l.ProductId==product.Id).First();
-                       
+                        var line = lines.Where(l => l.ProductId == product.Id).First();
+
                         if (product == null) return false;
-                       
+
                         product.StockQuantity += (int)line.Quantity;
                         product.IsOutOfStock = false;
                     }
@@ -579,12 +580,8 @@ namespace Al_BoomehDAL.Classes
 
                 using (_auditScope.Enable())
                 {
-                    int rowseffect = await _context.SaveChangesAsync();
-                    if (rowseffect > 0)
-                    {
-                        
-                        return true;
-                    }
+                   await _context.SaveChangesAsync();
+                 
                 }
 
                 await transaction.CommitAsync();
@@ -594,7 +591,7 @@ namespace Al_BoomehDAL.Classes
             }
             catch (BusinessRuleException)
             {
-                throw; 
+                throw;
             }
             catch (Exception ex)
             {
@@ -604,12 +601,12 @@ namespace Al_BoomehDAL.Classes
             }
 
         }
-        public async Task<bool> UpdateOrderTime(int orderId,UpdateOrderTimeDTO orderTimeDTO)
+        public async Task<bool> UpdateOrderTime(int orderId, UpdateOrderTimeDTO orderTimeDTO)
         {
-            var order=await _context.Orders.Where(o=> o.Id==orderId).FirstOrDefaultAsync();
+            var order = await _context.Orders.Where(o => o.Id == orderId).FirstOrDefaultAsync();
             if (order == null) return false;
-            order.EstimatedPreparingTime=orderTimeDTO.EstimatedPreparingTime;
-            order.EstimatedDeliveryTime=orderTimeDTO.EstimatedDeliveryTime;
+            order.EstimatedPreparingTime = orderTimeDTO.EstimatedPreparingTime;
+            order.EstimatedDeliveryTime = orderTimeDTO.EstimatedDeliveryTime;
             order.ActualReceivingTime = orderTimeDTO.ActualReceivingTime;
 
             using (_auditScope.Enable())
@@ -617,13 +614,13 @@ namespace Al_BoomehDAL.Classes
                 int rowseffect = await _context.SaveChangesAsync();
                 return (rowseffect > 0);
             }
-           
+
         }
-        public async Task<bool> UpdateOrderDriver(int orderId,UpdateDriverDTO updateDriverDTO)
+        public async Task<bool> UpdateOrderDriver(int orderId, UpdateDriverDTO updateDriverDTO)
         {
-            var order=await _context.Orders.Where(o => o.Id == orderId).FirstOrDefaultAsync();
+            var order = await _context.Orders.Where(o => o.Id == orderId).FirstOrDefaultAsync();
             if (order == null) throw new NotFoundException($"Order not found with id {orderId}");
-            order.DriverId=updateDriverDTO.DriverId;
+            order.DriverId = updateDriverDTO.DriverId;
             order.DriverCode = _CreateDriverCode();
             order.Status = (int)enStatus.OutForDelivery;
 
@@ -635,22 +632,22 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<bool> DeleteOrder(int id)
         {
-            var order=await _context.Orders
-                .Where(o=> o.Id==id)
+            var order = await _context.Orders
+                .Where(o => o.Id == id)
                 .FirstOrDefaultAsync();
             if (order == null) throw new NotFoundException($"Order not found with id {id}");
-            order.IsDeleted=true;
+            order.IsDeleted = true;
             using (_auditScope.Enable())
             {
                 int rowseffect = await _context.SaveChangesAsync();
                 return (rowseffect > 0);
             }
         }
-     
+
         public async Task<List<OrderLineDTO>> GetOrderLines(string orderCode)
         {
-            var listorderlines =await _context.OrderLines.AsNoTracking()
-                .Where(o => o.Order.OrderCode == orderCode&& !o.IsCart)
+            var listorderlines = await _context.OrderLines.AsNoTracking()
+                .Where(o => o.Order.OrderCode == orderCode && !o.IsCart)
                 .Select(n => new OrderLineDTO
                 {
                     Id = n.Id,
@@ -665,7 +662,7 @@ namespace Al_BoomehDAL.Classes
                 }).ToListAsync();
             return listorderlines;
         }
-        public async Task<int> AddOrderLine(int orderId,CreateOrderLineDTO lineDTO)
+        public async Task<int> AddOrderLine(int orderId, CreateOrderLineDTO lineDTO)
         {
             using var transaction = await
    _context.Database.BeginTransactionAsync();
@@ -694,13 +691,13 @@ namespace Al_BoomehDAL.Classes
                 var order = await _context.Orders
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                 if (order == null) throw new NotFoundException($"Order not found with id {orderId}");
-                order.SubTotal += product.ProductPrice*(decimal)lineDTO.Quantity;
-                order.TotalAmount+= product.ProductPrice * (decimal)lineDTO.Quantity;
-                order.UpdatedAtUtc= DateTime.UtcNow;
+                order.SubTotal += product.ProductPrice * (decimal)lineDTO.Quantity;
+                order.TotalAmount += product.ProductPrice * (decimal)lineDTO.Quantity;
+                order.UpdatedAtUtc = DateTime.UtcNow;
                 var extra = lineDTO.ExtraId.HasValue ? await _context.Extras
-                    .Where(e=> e.Id==lineDTO.ExtraId).FirstOrDefaultAsync() : null;
-                order.SubTotal += extra != null ? extra.Price.Value*(decimal)lineDTO.Quantity : 0;
-                order.TotalAmount+= extra != null ? extra.Price.Value * (decimal)lineDTO.Quantity : 0;
+                    .Where(e => e.Id == lineDTO.ExtraId).FirstOrDefaultAsync() : null;
+                order.SubTotal += extra != null ? extra.Price.Value * (decimal)lineDTO.Quantity : 0;
+                order.TotalAmount += extra != null ? extra.Price.Value * (decimal)lineDTO.Quantity : 0;
                 var line = new OrderLine
                 {
                     OrderId = orderId,
@@ -733,7 +730,7 @@ namespace Al_BoomehDAL.Classes
                 throw new BusinessRuleException($"AddLineToOrder failed");
             }
         }
-        public async Task<int> AddLineToCart(int orderId,CreateOrderLineDTO lineDTO)
+        public async Task<int> AddLineToCart(int orderId, CreateOrderLineDTO lineDTO)
         {
             var extra = lineDTO.ExtraId.HasValue ? await _context.Extras
                     .Where(e => e.Id == lineDTO.ExtraId).FirstOrDefaultAsync() : null;
@@ -753,7 +750,7 @@ namespace Al_BoomehDAL.Classes
                 Notes = lineDTO.Notes,
                 ProductName = product.ProductName,
                 Price = product.ProductPrice,
-                IsCart =true,
+                IsCart = true,
                 ExtraName = extra != null ? extra.ExtraName : null,
                 ExtraPrice = extra != null ? extra.Price : null,
                 Total = extra != null ? (decimal)lineDTO.Quantity * (product.ProductPrice + extra.Price.Value) : (decimal)lineDTO.Quantity * (product.ProductPrice)
@@ -767,8 +764,8 @@ namespace Al_BoomehDAL.Classes
                 return line.Id;
             }
             throw new BusinessRuleException("Failed to add line");
-        } 
-       
+        }
+
         public async Task<bool> DeleteOrderLine(int Id)
         {
             using var transaction = await
@@ -783,13 +780,13 @@ namespace Al_BoomehDAL.Classes
                     .FirstOrDefaultAsync(o => o.Id == line.OrderId);
 
                 if (order == null) return false;
-                order.SubTotal-=line.Total;
-                order.TotalAmount-=line.Total;
+                order.SubTotal -= line.Total;
+                order.TotalAmount -= line.Total;
 
                 var product = await _context.Products
                     .FirstOrDefaultAsync(o => o.Id == line.ProductId);
                 if (product == null) return false;
-                product.StockQuantity +=(int)line.Quantity;
+                product.StockQuantity += (int)line.Quantity;
                 product.IsOutOfStock = false;
 
                 _context.Remove(line);
@@ -809,17 +806,19 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<bool> DeleteLineFromCart(int id)
         {
-            var line=await _context.OrderLines
-                .Where(o=> o.Id == id&&o.IsCart).FirstOrDefaultAsync();
+            var line = await _context.OrderLines
+                .Where(o => o.Id == id && o.IsCart).FirstOrDefaultAsync();
             if (line == null) return false;
             _context.Remove(line);
-            int roweffected=await _context.SaveChangesAsync();
+            int roweffected = await _context.SaveChangesAsync();
             return (roweffected > 0);
         }
-        public async Task<Dictionary<enStatus,int>> GetOrderCountPairsStatus()
+        public async Task<Dictionary<enStatus, int>> GetOrderCountPairsStatus()
         {
-            Dictionary<enStatus,int> countpairsstatus=new Dictionary<enStatus,int>();
+            Dictionary<enStatus, int> countpairsstatus = new Dictionary<enStatus, int>();
             var report = await _context.Orders
+                .AsNoTracking()
+                .Where(o => o.CreatedAtUtc >= DateTime.UtcNow.Date && o.CreatedAtUtc < DateTime.UtcNow.AddDays(1))
                 .GroupBy(o => o.Status)
                 .Select(n => new
                 {
@@ -834,55 +833,56 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<long> GetOrderCount()
         {
+            
             var result = await _context.Orders
                 .AsNoTracking()
-                .CountAsync(o => o.CreatedAtUtc >= DateTime.UtcNow.Date&&o.CreatedAtUtc<DateTime.UtcNow.AddDays(1));
+                .CountAsync(o => o.CreatedAtUtc >= DateTime.UtcNow.Date && o.CreatedAtUtc < DateTime.UtcNow.AddDays(1));
             return result;
-                
+
         }
 
-        public async Task<int> CreateOrderFeedback( OrderFeedbackDTO feedbackDTO)
+        public async Task<int> CreateOrderFeedback(OrderFeedbackDTO feedbackDTO)
         {
             OrderFeedback feedback = new OrderFeedback
             {
                 Rate = (int)feedbackDTO.Rate,
                 OrderId = feedbackDTO.OrderId,
                 CustomerId = feedbackDTO.CustomerId,
-                Notes=feedbackDTO.Notes,
+                Notes = feedbackDTO.Notes,
             };
             _context.Add(feedback);
-           await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
             return feedback.Id;
 
         }
         public async Task<OrderFeedbackDTO> GetOrderFeedback(int orderid)
         {
-            var feedback=await _context.OrderFeedbacks
-                .Where(o=> o.OrderId == orderid)
-                .Select(f=> new OrderFeedbackDTO
+            var feedback = await _context.OrderFeedbacks
+                .Where(o => o.OrderId == orderid)
+                .Select(f => new OrderFeedbackDTO
                 {
-                    Rate=(enRate)f.Rate,
-                    OrderId=orderid,
-                    CustomerId=f.CustomerId,
-                    Notes=f.Notes,
+                    Rate = (enRate)f.Rate,
+                    OrderId = orderid,
+                    CustomerId = f.CustomerId,
+                    Notes = f.Notes,
                 }).AsNoTracking().FirstOrDefaultAsync();
             if (feedback == null) return null;
-           return feedback;
+            return feedback;
         }
         public async Task<bool> IsOrderExistByCode(string code)
         {
-            var exist=await _context.Orders
-                .AnyAsync(o=>o.OrderCode==code);
+            var exist = await _context.Orders
+                .AnyAsync(o => o.OrderCode == code);
             return exist;
         }
         public async Task<decimal> AvgOrderValueLastMonth()
         {
             decimal result = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.Status == (int)enStatus.Delivered&& o.CreatedAtUtc>=DateTime.UtcNow.AddDays(-30))
+                .Where(o => o.Status == (int)enStatus.Delivered && o.CreatedAtUtc >= DateTime.UtcNow.AddDays(-30))
                 .AverageAsync(n => n.TotalAmount.Value);
             return result;
-                
+
         }
         public async Task<List<OrderStatusHistoryDTO>?> GetOrderStatusHistories(int orderid)
         {
@@ -912,17 +912,91 @@ namespace Al_BoomehDAL.Classes
                     ProductName = n.ProductName,
                     Notes = n.Notes,
                     Id = n.Id,
-                    StoreId=n.Order.StoreId,
-                    CustomerId=n.Order.CustomerId
+                    StoreId = n.Order.StoreId,
+                    CustomerId = n.Order.CustomerId
                 }).AsNoTracking()
                 .FirstOrDefaultAsync();
             return orderline;
         }
         public async Task<bool> IsOrderLineExist(int id)
         {
-            var result=await _context.OrderLines
-                .AnyAsync(o=>o.Id == id);
+            var result = await _context.OrderLines
+                .AnyAsync(o => o.Id == id);
             return result;
         }
+
+        public async Task CancelAbandonedOrders()
+        {
+           
+               var orderIds=await _context.OrderStatusHistories
+                    .AsNoTracking()
+                    .Where(h=>h.NewStatus==(int)enStatus.Pending && h.CreatedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
+                    && _context.Orders.Any(o => o.Id == h.OrderId
+                                               && o.Status == (int)enStatus.Pending))
+                    .OrderByDescending(h => h.OrderId)
+                    .Select(o=>o.OrderId)
+                    .Take(10) //مبدئيا لانو في كثيييييير طلبات 
+                    .ToListAsync();
+
+                foreach (var penOrderId in orderIds)
+                {
+                    using var transaction = await
+                           _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var order = await _context.Orders
+                        .FromSqlInterpolated($"""
+                            SELECT *
+                            FROM [Order] WITH (UPDLOCK, ROWLOCK)
+                            WHERE Id = {penOrderId}
+                        """)
+                          .SingleOrDefaultAsync();
+                    if (order == null) continue;
+                    var newOrderState = new OrderStatusHistory
+                    {
+                        OrderId = penOrderId,
+                        OldStatus = order.Status,
+                        NewStatus = (int)enStatus.Cancelled
+                    };
+
+                    await _context.AddAsync(newOrderState);
+
+                    var productsQuantity = await _context.OrderLines
+                      .Where(l => l.OrderId == penOrderId)
+                      .GroupBy(l => l.ProductId)
+                      .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                      .ToDictionaryAsync(d => d.ProductId, d => d.Quantity);
+
+                    if (productsQuantity.Count > 0)
+                    {
+                        foreach (var (productId, quantity) in productsQuantity)
+                        {
+                            await _context.Products
+                                .Where(p => p.Id == productId)
+                                .ExecuteUpdateAsync(setters => setters
+                                    .SetProperty(p => p.StockQuantity, p => p.StockQuantity + (long)quantity)
+                                    .SetProperty(p => p.IsOutOfStock, p => false));
+                        }
+                    }
+                   
+                    order.Status = (int)enStatus.Cancelled;
+
+                    using (_auditScope.Enable())
+                    {
+                        await _context.SaveChangesAsync();
+                        transaction.Commit();
+                    }
+                    
+                }
+                catch
+                {
+                    transaction.Rollback();
+                }
+
+            }
+
+        }
+           
+        
     }
 }

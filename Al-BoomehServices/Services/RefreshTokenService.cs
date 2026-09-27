@@ -1,23 +1,27 @@
 using Al_BoomehDAL.Models;
+using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Konscious.Security.Cryptography;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Al_BoomehServices.Services
 {
-    public class RefreshTokenService: IRefreshTokenService
+    public class RefreshTokenService: IRefreshTokenService, ITokenCleanup
     {
         private readonly AppDbContext _context;
-        public RefreshTokenService(AppDbContext context)
+        private readonly ILogger<RefreshTokenService> _logger;
+        public RefreshTokenService(AppDbContext context,ILogger<RefreshTokenService> logger)
         {
             _context = context;
+            _logger = logger;
         }
         public async Task SaveRefreshToken(Guid userId, string rawRefreshToken, DateTime expirationDate)
         {
@@ -86,6 +90,23 @@ namespace Al_BoomehServices.Services
             using var sha256 = System.Security.Cryptography.SHA256.Create();
             var bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
             return Convert.ToBase64String(bytes);
+        }
+        public async Task TokenCleanup()
+        {
+            var teokenList=await _context.RefreshTokens
+                .Where(r=>r.ExpiresAtUtc < DateTime.UtcNow&&r.RefreshTokenRevokedAt<=DateTime.UtcNow.AddDays(-7))
+                .ToListAsync();
+
+            if (teokenList.Any())
+            {
+                _context.RemoveRange(teokenList);   
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Deleted {Count} expired refresh tokens.", teokenList.Count);
+            }
+            else
+            {
+                _logger.LogInformation("No expired refresh tokens to delete.");
+            }
         }
 
     }

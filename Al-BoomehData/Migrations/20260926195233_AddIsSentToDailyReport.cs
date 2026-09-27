@@ -5,24 +5,25 @@
 namespace Al_BoomehDAL.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdempotensyKey : Migration
+    public partial class AddIsSentToDailyReport : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-           
+            migrationBuilder.AddColumn<bool>(
+                name: "IsSent",
+                table: "DailyReports",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Order_IdempotencyKey",
-                table: "Order");
-
             migrationBuilder.DropColumn(
-                name: "IdempotencyKey",
-                table: "Order");
+                name: "IsSent",
+                table: "DailyReports");
         }
     }
 }

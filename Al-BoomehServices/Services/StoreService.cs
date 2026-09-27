@@ -1,12 +1,15 @@
 using Al_BoomehDAL.Models;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
+using Hangfire;
 
 
 namespace Al_BoomehDAL.Classes
@@ -17,17 +20,19 @@ namespace Al_BoomehDAL.Classes
         Open,
         Busy,
     }
-    public class StoreService: IStoreService
+    public class StoreService: IStoreService, ICreateDailyReport, INotificationEngine, IDailyReports
     {
         private readonly AppDbContext _context;
         private readonly ILogger<StoreService> _logger;
         private readonly IAuditScope _auditScope;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public StoreService(AppDbContext context,ILogger<StoreService> logger, IAuditScope auditScope)
+        public StoreService(AppDbContext context,ILogger<StoreService> logger, IAuditScope auditScope,IBackgroundJobClient backgroundJobClient)
         {
             _logger = logger;
             _auditScope = auditScope;
             _context = context;
+            _backgroundJobClient = backgroundJobClient;
         }
         public async Task<bool> IsExist(int id)
         {
@@ -327,6 +332,127 @@ namespace Al_BoomehDAL.Classes
 
             return (roweffected > 0);
         }
-     
+        public async Task CreateDailyReport()
+        {
+            var today = DateTime.UtcNow.Date; 
+            var yesterday = today.AddDays(-1);
+
+            var storeOrderCounts = await _context.Orders
+              .Where(o => _context.OrderStatusHistories
+                  .Any(s => s.OrderId == o.Id
+                          && s.CreatedAtUtc >= yesterday && s.CreatedAtUtc < today
+                          && (s.NewStatus == (int)enStatus.Cancelled
+                           || s.NewStatus == (int)enStatus.Delivered
+                           || s.NewStatus == (int)enStatus.Decline)))
+              .GroupBy(o => o.StoreId)
+              .Select(g => new
+              {
+                  StoreId = g.Key,
+                  OrderCount = g.Count()
+              })
+              .OrderBy(o => o.OrderCount)
+              .ToDictionaryAsync(d=>d.StoreId,d=>d.OrderCount);
+
+            var totalRevenue=await _context.Orders
+                .Where(o=>o.Status==(int)enStatus.Delivered && _context.OrderStatusHistories
+                  .Any(s => s.OrderId == o.Id
+                          && s.CreatedAtUtc >= yesterday && s.CreatedAtUtc < today
+                          && s.NewStatus == (int)enStatus.Delivered))
+                .GroupBy(o => o.StoreId)
+                .Select(r=> new
+                {
+                    StoreId=r.Key,
+                    TotalSummery=r.Sum(o=>o.SubTotal)
+                })
+                .OrderBy(o=>o.TotalSummery)
+                .ToDictionaryAsync(d => d.StoreId, d => d.TotalSummery);
+
+            var orderIds = await _context.Orders
+               .Where(o =>
+                   o.Status == (int)enStatus.Delivered &&
+                   _context.OrderStatusHistories.Any(s =>
+                       s.OrderId == o.Id &&
+                       s.CreatedAtUtc >= yesterday &&
+                       s.CreatedAtUtc < today &&
+                       s.NewStatus == (int)enStatus.Delivered))
+               .GroupBy(o => o.StoreId)
+               .Select(g => new
+               {
+                   StoreId = g.Key,
+                   OrderIds = g.Select(o => o.Id).ToList()
+               })
+               .ToListAsync();
+
+            Dictionary<int,int> topProductPairsStore = new Dictionary<int,int>();
+
+            foreach (var store in orderIds)
+            {
+                var topProduct = await _context.OrderLines
+                .AsNoTracking()
+                .Where(ol => store.OrderIds.Contains(ol.OrderId))
+                .GroupBy(p => p.ProductId)
+                .Select(n => new
+                {
+                    ProductId = n.Key,
+                    Quantity = n.Sum(c => c.Quantity)
+                })
+                .OrderByDescending(x => x.Quantity)
+                .FirstOrDefaultAsync();
+
+                if (topProduct == null) continue;
+
+
+                var report = new DailyReport()
+                {
+                    StoreId =store.StoreId,
+                    ProductId=topProduct.ProductId,
+                    TotalRevenue = totalRevenue[store.StoreId].Value,
+                    OrderCount = storeOrderCounts.GetValueOrDefault(store.StoreId, 0),
+                };
+                await _context.AddAsync(report);
+            }
+           await _context.SaveChangesAsync();
+
+           
+        }
+        public async Task NotificationEngine()
+        {
+            var reports = await _context.DailyReports
+                .Where(r => !r.IsSent)
+                .ToListAsync();
+
+            if (!reports.Any())
+            {
+                _logger.LogInformation("No new reports to send.");
+                return;
+            }
+
+            foreach (var report in reports)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("\n--------------------------------------");
+                sb.AppendLine($"\tStoreId: {report.StoreId}");
+                sb.AppendLine($"\tTop Product: {report.ProductId}");
+                sb.AppendLine($"\tOrders Count: {report.OrderCount}");
+                sb.AppendLine($"\tTotal Revenue: {report.TotalRevenue}");
+                sb.AppendLine("--------------------------------------");
+
+                _logger.LogInformation(sb.ToString());
+
+                report.IsSent = true;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        public async Task DailyReports()
+        {
+            var jobId = _backgroundJobClient.Enqueue<ICreateDailyReport>(
+           x => x.CreateDailyReport());
+
+            _backgroundJobClient.ContinueJobWith<INotificationEngine>(
+            jobId,
+            x => x.NotificationEngine());
+
+        }
     }
 }

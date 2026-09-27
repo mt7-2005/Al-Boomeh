@@ -4,6 +4,7 @@ using Al_BoomehDAL.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Al_BoomehDAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925171740_AddDailyReportTable")]
+    partial class AddDailyReportTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -581,9 +584,6 @@ namespace Al_BoomehDAL.Migrations
 
                     b.Property<int?>("PaymentMethod")
                         .HasColumnType("int");
-
-                    b.Property<DateTime>("PlacedAtUTC")
-                        .HasColumnType("datetime2");
 
                     b.Property<decimal?>("ServiceFees")
                         .HasColumnType("decimal(18, 2)");
@@ -1185,16 +1185,10 @@ namespace Al_BoomehDAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsSent")
-                        .HasColumnType("bit");
-
                     b.Property<int>("OrderCount")
                         .HasColumnType("int");
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StoreId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalRevenue")

@@ -9,17 +9,21 @@ using Al_BoomehDAL.Models;
 using Al_BoomehDAL.Seeding;
 using Al_BoomehServices;
 using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Al_BoomehServices.Services;
 using Al_BoomehServices.Validators;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using static Al_Boomeh.Controllers.OrdersController;
@@ -139,7 +143,6 @@ builder.Services.AddSwaggerGen(options =>
 
 
 builder.Host.UseSerilog();
-builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -147,11 +150,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditScope, AuditScope>();
 builder.Services.AddValidatorsFromAssemblyContaining<AppValidators>();
-builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 builder.Services.AddScoped<AuditingSaveChangesInterceptor>();
 builder.Services.AddScoped<ISmsSender, SmsSender>();
+builder.Services.AddScoped<ISendOTP,OtpService>();
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+builder.Services.AddKeyedScoped<ICurrentUser, SystemCurrentUser>("system");
+builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
+builder.Services.AddHostedService<OrdersCountBackService>();
 
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
@@ -166,10 +171,23 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     }
 });
 
+builder.Services.AddHangfire(config =>
+{
+    config.UseSqlServerStorage(
+        builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
+builder.Services.AddHangfireServer();
+
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ICancelAbandonedOrders, OrderService>();
+builder.Services.AddScoped<IDailyReports, StoreService>();
+builder.Services.AddScoped<ICreateDailyReport, StoreService>();
+builder.Services.AddScoped<INotificationEngine, StoreService>();
+builder.Services.AddScoped<ITokenCleanup, RefreshTokenService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IDriverService, DriversService>();
@@ -193,7 +211,26 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
+
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), Cron.MinuteInterval(30));
+
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
+
+
+ app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
+
 app.MapControllers();
+
 
 try
 {

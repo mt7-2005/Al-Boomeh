@@ -96,6 +96,8 @@ namespace Al_BoomehDAL.Data
                     AuditAction = (int)action,
                     ChangeJson = JsonSerializer.Serialize(changes),
                     TimestampUtc = now,
+                    CreatedAtUtc=now,
+                    IsDeleted=false,
                     UserId = _currentUser.UserId
                 });
             }

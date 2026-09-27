@@ -5,24 +5,25 @@
 namespace Al_BoomehDAL.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdempotensyKey : Migration
+    public partial class AddStoreIdToDaillyReport : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-           
+            migrationBuilder.AddColumn<int>(
+                name: "StoreId",
+                table: "DailyReports",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Order_IdempotencyKey",
-                table: "Order");
-
             migrationBuilder.DropColumn(
-                name: "IdempotencyKey",
-                table: "Order");
+                name: "StoreId",
+                table: "DailyReports");
         }
     }
 }

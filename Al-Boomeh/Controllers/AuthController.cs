@@ -5,6 +5,7 @@ using Al_BoomehServices;
 using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
 using BCrypt.Net;
+using Hangfire;
 using Konscious.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -19,6 +20,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using static Al_BoomehServices.Services.OtpService;
+using Al_BoomehServices.Jobs;
+using Al_Boomeh.Authorization;
 
 
 namespace Al_Boomeh.Controllers
@@ -34,14 +37,15 @@ namespace Al_Boomeh.Controllers
         private readonly IRefreshTokenService _refreshTokesService;
         private readonly IConfiguration _configuration;
         private readonly ICurrentUser _currentUser;
-
-        public AuthController(IUserService usersService, IOtpService otpService, IRefreshTokenService refreshTokesService,IConfiguration configuration, ICurrentUser currentUser)
+        private readonly IBackgroundJobClient _job;
+        public AuthController(IUserService usersService, IOtpService otpService, IRefreshTokenService refreshTokesService,IConfiguration configuration, ICurrentUser currentUser,IBackgroundJobClient job)
         {
             _otpService = otpService;
             _refreshTokesService = refreshTokesService;
             _userService = usersService;
             _currentUser = currentUser;
             _configuration = configuration;
+            _job = job;
         }
 
         [EnableRateLimiting("AuthLimiter")]
@@ -87,6 +91,7 @@ namespace Al_Boomeh.Controllers
 
             await _refreshTokesService.SaveRefreshToken(user.Id, refreshToken, expirationDate);
 
+
             return Ok(new TokenResponse
             {
                 AccessToken = accessToken,
@@ -100,7 +105,8 @@ namespace Al_Boomeh.Controllers
         {
             if (string.IsNullOrEmpty(phone)||phone.Length<10||!phone.All(char.IsDigit)) return BadRequest("Invalid input");
 
-            await _otpService.Request(phone);
+            _job.Enqueue<ISendOTP>(x=>x.Request(phone));
+
             return Ok();
         }
 
@@ -108,7 +114,6 @@ namespace Al_Boomeh.Controllers
         [HttpPut("Verify")]
         public async Task<IActionResult> Verify(string phone, string code)
         {
-            if (string.IsNullOrEmpty(phone) || phone.Length < 10 || !phone.All(char.IsDigit)) return BadRequest("Invalid input");
 
             var result = await _otpService.Verify(phone, code);
 
@@ -135,7 +140,7 @@ namespace Al_Boomeh.Controllers
 
             var user = await _userService.GetUserByPhone(phone);
 
-            
+            if (user == null) return BadRequest("Failed to verify");
 
             string accessToken = BuildAccessToken(user);
 
@@ -225,7 +230,6 @@ namespace Al_Boomeh.Controllers
             if (refreshToken == null)
                 return Ok();
 
-            
 
             await _refreshTokesService.RevokeById(refreshToken.Id);
             return Ok("Logged out successfully");
