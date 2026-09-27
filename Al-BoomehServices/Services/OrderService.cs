@@ -482,7 +482,7 @@ namespace Al_BoomehDAL.Classes
                     order.Latitude = orderDTO.Latitude;
                 }
                 order.TotalAmount = total;
-
+                order.PlacedAtUTC = DateTime.UtcNow;
                 int roweffected = await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 if (roweffected > 0)
@@ -818,7 +818,7 @@ namespace Al_BoomehDAL.Classes
             Dictionary<enStatus, int> countpairsstatus = new Dictionary<enStatus, int>();
             var report = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.CreatedAtUtc >= DateTime.UtcNow.Date && o.CreatedAtUtc < DateTime.UtcNow.AddDays(1))
+                .Where(o => o.PlacedAtUTC >= DateTime.UtcNow.Date && o.PlacedAtUTC < DateTime.UtcNow.AddDays(1))
                 .GroupBy(o => o.Status)
                 .Select(n => new
                 {
@@ -836,7 +836,7 @@ namespace Al_BoomehDAL.Classes
             
             var result = await _context.Orders
                 .AsNoTracking()
-                .CountAsync(o => o.CreatedAtUtc >= DateTime.UtcNow.Date && o.CreatedAtUtc < DateTime.UtcNow.AddDays(1));
+                .CountAsync(o => o.PlacedAtUTC >= DateTime.UtcNow.Date && o.PlacedAtUTC < DateTime.UtcNow.AddDays(1));
             return result;
 
         }
@@ -879,7 +879,7 @@ namespace Al_BoomehDAL.Classes
         {
             decimal result = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.Status == (int)enStatus.Delivered && o.CreatedAtUtc >= DateTime.UtcNow.AddDays(-30))
+                .Where(o => o.Status == (int)enStatus.Delivered && o.PlacedAtUTC >= DateTime.UtcNow.AddDays(-30))
                 .AverageAsync(n => n.TotalAmount.Value);
             return result;
 
@@ -928,13 +928,11 @@ namespace Al_BoomehDAL.Classes
         public async Task CancelAbandonedOrders()
         {
            
-               var orderIds=await _context.OrderStatusHistories
+               var orderIds=await _context.Orders
                     .AsNoTracking()
-                    .Where(h=>h.NewStatus==(int)enStatus.Pending && h.CreatedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
-                    && _context.Orders.Any(o => o.Id == h.OrderId
-                                               && o.Status == (int)enStatus.Pending))
-                    .OrderByDescending(h => h.OrderId)
-                    .Select(o=>o.OrderId)
+                    .Where(o=>o.Status==(int)enStatus.Pending && o.PlacedAtUTC <= DateTime.UtcNow.AddMinutes(-30))
+                    .OrderByDescending(o => o.Id)
+                    .Select(o=>o.Id)
                     .Take(10) //مبدئيا لانو في كثيييييير طلبات 
                     .ToListAsync();
 
