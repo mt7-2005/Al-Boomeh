@@ -8,6 +8,7 @@ namespace Al_BoomehServices.Jobs
 {
     public interface INotificationEngine
     {
-        Task NotificationEngine();
+        Task ReportsEngine();
+        void MessagesEngine(string message);
     }
 }

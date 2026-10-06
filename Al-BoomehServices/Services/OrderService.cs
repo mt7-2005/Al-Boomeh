@@ -45,13 +45,14 @@ namespace Al_BoomehDAL.Classes
         private readonly ILogger<OrderService> _logger;
         private readonly IAuditScope _auditScope;
         private readonly ICurrentUser _currentUser;
-
-        public OrderService(AppDbContext context, ILogger<OrderService> logger, ICurrentUser currentUser, IAuditScope auditScope)
+        private readonly IOrderPlaced _orderPlaced;
+        public OrderService(AppDbContext context, ILogger<OrderService> logger, ICurrentUser currentUser, IAuditScope auditScope, IOrderPlaced orderPlaced)
         {
             _logger = logger;
             _auditScope = auditScope;
             _context = context;
             _currentUser = currentUser;
+            _orderPlaced = orderPlaced;
         }
         private int _CreateDriverCode()
         {
@@ -355,6 +356,7 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<bool> PlaceOrder(int orderId, PlaceOrderDTO orderDTO, decimal deliveryfees = 0, decimal servicefees = 0)
         {
+ 
             var errors = new Dictionary<string, string[]>();
 
 
@@ -364,150 +366,170 @@ namespace Al_BoomehDAL.Classes
                 _logger.LogWarning("Place order failed , empty data");
                 throw new ValidationException(errors);
             }
-            using var transaction = await
-           _context.Database.BeginTransactionAsync();
-            try
+
+            string code = _CreateOrderCode(orderId);
+
+            var order = await _context.Orders
+             .Where(o => o.Id == orderId &&
+                         o.Status == (int)enStatus.Holding)
+             .Where(o => !_context.Orders
+                 .Any(o2 => o2.OrderCode == code))
+             .FirstOrDefaultAsync();
+
+            OrderPlacedEventDTO? evt = null;
+
+            await using (var transaction = await _context.Database.BeginTransactionAsync())
             {
-                string code = _CreateOrderCode(orderId);
-
-                var order = await _context.Orders
-                 .Where(o => o.Id == orderId &&
-                             o.Status == (int)enStatus.Holding)
-                 .Where(o => !_context.Orders
-                     .Any(o2 => o2.OrderCode == code))
-                 .FirstOrDefaultAsync();
-
-
-                if (order == null) throw new BusinessRuleException($"Failed to place order");
-
-                var lines = await _context.OrderLines
-                 .Where(l => l.OrderId == order.Id)
-                 .Select(o => o)
-                 .OrderBy(o => o.Id)
-                 .ToListAsync();
-                if (lines == null || lines.Count == 0)
+                try
                 {
-                    errors["OrderLines"] = ["empty data"];
-                    _logger.LogWarning("Place order failed , empty data");
-                    throw new ValidationException(errors);
-                }
 
 
-                decimal total = 0;
-                if (order == null) throw new NotFoundException($"Order not found with id {orderId}");
+                    if (order == null) throw new BusinessRuleException($"Failed to place order");
 
-
-                order.SubTotal = lines.Sum(l => l.Total);
-
-                total += order.SubTotal.Value;
-
-                await _context.OrderLines
-                    .Where(l => l.OrderId == orderId && l.IsCart)
-                    .ExecuteUpdateAsync(setters =>
-                    setters.SetProperty(s => s.IsCart, false));
-
-                var store = await _context.Stores
-                     .FirstOrDefaultAsync(s => s.Id == order.StoreId);
-                if (store == null) throw new NotFoundException("Store not found");
-
-
-                order.OrderCode = code;
-                order.OrderType = (int)orderDTO.Type;
-                foreach (var line in lines)
-                {
-                    var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == line.ProductId);
-                    if (product == null)
+                    var lines = await _context.OrderLines
+                     .Where(l => l.OrderId == order.Id)
+                     .Select(o => o)
+                     .OrderBy(o => o.Id)
+                     .ToListAsync();
+                    if (lines == null || lines.Count == 0)
                     {
-                        _logger.LogWarning("Place order failed ,product not found");
-                        throw new NotFoundException("Place order failed ,product not found");
-                    }
-                    if (product.IsOutOfStock || product.StockQuantity < line.Quantity)
-                    {
-                        errors["Product"] = ["product out of stock"];
-                        _logger.LogWarning("Place order failed ,product out of stock");
-                        throw new ValidationException(errors);
-                    }
-                    var affectedRows = await _context.Products
-                       .Where(p => p.Id == product.Id && p.StockQuantity >= (long)line.Quantity)
-                       .ExecuteUpdateAsync(setters => setters
-                       .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
-                       .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));
-                    if (affectedRows == 0)
-                    {
-                        errors["Product"] = ["product out of stock"];
-                        _logger.LogWarning("Place order failed ,product out of stock");
+                        errors["OrderLines"] = ["empty data"];
+                        _logger.LogWarning("Place order failed , empty data");
                         throw new ValidationException(errors);
                     }
 
-                }
 
-                order.PaymentMethod = (int)orderDTO.PaymentMethod;
-                order.StoreNotes = orderDTO.StoreNotes;
-                order.Tax = store.Tax;
-
-                total += order.Tax.Value;
+                    decimal total = 0;
 
 
-                order.EstimatedPreparingTime = store.EstimatedPreparingTime;
-                order.Status = (int)enStatus.Pending;
-                if (orderDTO.VoucherCode != null)
-                {
-                    var voucher = await _context.Vouchers
-                        .Where(v => v.Code == orderDTO.VoucherCode).FirstOrDefaultAsync();
-                    if (voucher != null && voucher.ExpirationDate > DateTime.UtcNow)
+                    order.SubTotal = lines.Sum(l => l.Total);
+
+                    total += order.SubTotal.Value;
+
+                    await _context.OrderLines
+                        .Where(l => l.OrderId == orderId && l.IsCart)
+                        .ExecuteUpdateAsync(setters =>
+                        setters.SetProperty(s => s.IsCart, false));
+
+                    var store = await _context.Stores
+                         .FirstOrDefaultAsync(s => s.Id == order.StoreId);
+                    if (store == null) throw new NotFoundException("Store not found");
+
+
+                    order.OrderCode = code;
+                    order.OrderType = (int)orderDTO.Type;
+                    foreach (var line in lines)
                     {
-                        order.Voucher = voucher.IsUsed == false ? voucher : null;
-                        if (!voucher.IsUsed)
+                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == line.ProductId);
+                        if (product == null)
                         {
-                            total -= voucher.Amount;
+                            _logger.LogWarning("Place order failed ,product not found");
+                            throw new NotFoundException("Place order failed ,product not found");
                         }
-                        voucher.IsUsed = true;
+                        if (product.IsOutOfStock || product.StockQuantity < line.Quantity)
+                        {
+                            errors["Product"] = ["product out of stock"];
+                            _logger.LogWarning("Place order failed ,product out of stock");
+                            throw new ValidationException(errors);
+                        }
+                        var affectedRows = await _context.Products
+                           .Where(p => p.Id == product.Id && p.StockQuantity >= (long)line.Quantity)
+                           .ExecuteUpdateAsync(setters => setters
+                           .SetProperty(p => p.StockQuantity, p => p.StockQuantity - (long)line.Quantity)
+                           .SetProperty(p => p.IsOutOfStock, p => (p.StockQuantity == line.Quantity)));
+                        if (affectedRows == 0)
+                        {
+                            errors["Product"] = ["product out of stock"];
+                            _logger.LogWarning("Place order failed ,product out of stock");
+                            throw new ValidationException(errors);
+                        }
+
+                    }
+
+                    order.PaymentMethod = (int)orderDTO.PaymentMethod;
+                    order.StoreNotes = orderDTO.StoreNotes;
+                    order.Tax = store.Tax;
+
+                    total += order.Tax.Value;
+
+
+                    order.EstimatedPreparingTime = store.EstimatedPreparingTime;
+                    order.Status = (int)enStatus.Pending;
+                    if (orderDTO.VoucherCode != null)
+                    {
+                        var voucher = await _context.Vouchers
+                            .Where(v => v.Code == orderDTO.VoucherCode).FirstOrDefaultAsync();
+                        if (voucher != null && voucher.ExpirationDate > DateTime.UtcNow)
+                        {
+                            order.Voucher = voucher.IsUsed == false ? voucher : null;
+                            if (!voucher.IsUsed)
+                            {
+                                total -= voucher.Amount;
+                            }
+                            voucher.IsUsed = true;
+                        }
+                    }
+                    if (order.OrderType == (int)enOrderType.Delivery)
+                    {
+                        order.Tips = orderDTO.Tips;
+                        order.ServiceFees = servicefees * order.SubTotal;
+                        total += order.Tips.Value;
+                        total += order.ServiceFees.Value;
+                        // * total
+                        order.AddressId = orderDTO.AddressId;
+                        order.Distance = _CalculateDistance(
+                           Convert.ToDouble(store.Latitude), Convert.ToDouble(store.Longitude), Convert.ToDouble(orderDTO.Latitude), Convert.ToDouble(Convert.ToDouble(orderDTO.Longitude)));
+                        order.DeliveryFees = (decimal)order.Distance * deliveryfees;
+                        order.EstimatedDeliveryTime = (int)order.Distance * 3;
+                        order.DriverInstructions = orderDTO.DriverInstructions;
+                        order.DriverNotes = orderDTO.DriverNotes;
+                        order.Longitude = orderDTO.Longitude;
+                        order.Latitude = orderDTO.Latitude;
+                    }
+                    order.TotalAmount = total;
+                    order.PlacedAtUTC = DateTime.UtcNow;
+                    int roweffected = await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    if (roweffected > 0)
+                    {
+                        evt = new OrderPlacedEventDTO
+                        {
+                            StoreId = order.StoreId,
+                            CustomerId = order.CustomerId,
+                            OrderId = order.Id,
+                            Total = order.TotalAmount.Value,
+                            CreatedAtUtc = DateTime.UtcNow,
+                        };
+
+                        _logger.LogInformation("Order Place successfully with order code {OrderCode}",
+                            order.OrderCode);
+
                     }
                 }
-                if (order.OrderType == (int)enOrderType.Delivery)
+                catch (ValidationException ex)
                 {
-                    order.Tips = orderDTO.Tips;
-                    order.ServiceFees = servicefees * order.SubTotal;
-                    total += order.Tips.Value;
-                    total += order.ServiceFees.Value;
-                    // * total
-                    order.AddressId = orderDTO.AddressId;
-                    order.Distance = _CalculateDistance(
-                       Convert.ToDouble(store.Latitude), Convert.ToDouble(store.Longitude), Convert.ToDouble(orderDTO.Latitude), Convert.ToDouble(Convert.ToDouble(orderDTO.Longitude)));
-                    order.DeliveryFees = (decimal)order.Distance * deliveryfees;
-                    order.EstimatedDeliveryTime = (int)order.Distance * 3;
-                    order.DriverInstructions = orderDTO.DriverInstructions;
-                    order.DriverNotes = orderDTO.DriverNotes;
-                    order.Longitude = orderDTO.Longitude;
-                    order.Latitude = orderDTO.Latitude;
+                    var errorsText = string.Join("; ", ex.Errors.Select(kv =>
+                        $"{kv.Key}: {string.Join(", ", kv.Value)}"));
+
+                    _logger.LogWarning(ex, "Validation failed on : {Errors}", errorsText);
+                    throw new ValidationException(errors);
+
                 }
-                order.TotalAmount = total;
-                order.PlacedAtUTC = DateTime.UtcNow;
-                int roweffected = await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                if (roweffected > 0)
+                catch (Exception e)
                 {
-                    _logger.LogInformation("Order Place successfully with order code {OrderCode}",
-                        order.OrderCode);
-                    return true;
+
+                    throw new BusinessRuleException("Failed to place order " + e);
                 }
+                try
+                {
+                    await _orderPlaced.Publish(evt!);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation(ex.Message);
+                }
+                return true;
             }
-            catch (ValidationException ex)
-            {
-                var errorsText = string.Join("; ", ex.Errors.Select(kv =>
-                    $"{kv.Key}: {string.Join(", ", kv.Value)}"));
-
-                _logger.LogWarning(ex, "Validation failed on : {Errors}", errorsText);
-                await transaction.RollbackAsync();
-
-            }
-            catch (Exception e)
-            {
-                await transaction.RollbackAsync();
-
-                throw new BusinessRuleException("Failed to place order " + e);
-            }
-            return false;
         }
         public async Task<bool> UpdateOrderStatus(int orderId, UpdateOrderStatusDTO statusdto)
         {

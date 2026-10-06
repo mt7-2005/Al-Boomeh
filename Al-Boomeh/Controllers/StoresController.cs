@@ -19,10 +19,12 @@ namespace Al_Boomeh.Controllers
     {
         private readonly IStoreService _store;
         private readonly IUserService _userService;
-        public StoresController(IStoreService store, IUserService usersService)
+        private readonly IAnalyticsService _analyticsService;
+        public StoresController(IStoreService store, IUserService usersService,IAnalyticsService analyticsService)
         {
             _userService = usersService;
             _store = store;
+            _analyticsService = analyticsService;
         }
 
         [AllowAnonymous]
@@ -254,6 +256,31 @@ namespace Al_Boomeh.Controllers
             var partnerId=await _userService.CreatePartner(partner);
 
             return Ok(partnerId);
+        }
+
+        [HttpGet("{Id}/get-analytic", Name = "GetAnalytics")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<AnalyticsDTO?>> GetAnalytics(int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               id,
+               "StoreOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
+
+            var analytic=await _analyticsService.GetAnalytics(id);
+            return Ok(analytic);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("get-all-analytics", Name = "GetAllAnalytics")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<List<AnalyticsDTO>?>> GetAllAnalytics()
+        {
+            var analyticsList=await _analyticsService.GetAllAnalytics();
+            return Ok(analyticsList);
         }
     }
 }

@@ -19,6 +19,13 @@ namespace Al_BoomehDAL.Classes
         public decimal? Tax { get; set; } 
 
     }
+    public class AnalyticsDTO
+    {
+        public int StoreId { get; set; }
+        public int OrderCount { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public DateTime LastUpdateUtc { get; set; }
+    }
 
     public class UpdateStoreStatusDTO
     {

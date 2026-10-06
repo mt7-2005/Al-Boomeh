@@ -20,7 +20,7 @@ namespace Al_BoomehDAL.Classes
         Open,
         Busy,
     }
-    public class StoreService: IStoreService, ICreateDailyReport, INotificationEngine, IDailyReports
+    public class StoreService: IStoreService, ICreateDailyReport, IDailyReports
     {
         private readonly AppDbContext _context;
         private readonly ILogger<StoreService> _logger;
@@ -415,35 +415,7 @@ namespace Al_BoomehDAL.Classes
 
            
         }
-        public async Task NotificationEngine()
-        {
-            var reports = await _context.DailyReports
-                .Where(r => !r.IsSent)
-                .ToListAsync();
-
-            if (!reports.Any())
-            {
-                _logger.LogInformation("No new reports to send.");
-                return;
-            }
-
-            foreach (var report in reports)
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("\n--------------------------------------");
-                sb.AppendLine($"\tStoreId: {report.StoreId}");
-                sb.AppendLine($"\tTop Product: {report.ProductId}");
-                sb.AppendLine($"\tOrders Count: {report.OrderCount}");
-                sb.AppendLine($"\tTotal Revenue: {report.TotalRevenue}");
-                sb.AppendLine("--------------------------------------");
-
-                _logger.LogInformation(sb.ToString());
-
-                report.IsSent = true;
-            }
-
-            await _context.SaveChangesAsync();
-        }
+       
         public async Task DailyReports()
         {
             var jobId = _backgroundJobClient.Enqueue<ICreateDailyReport>(
@@ -451,7 +423,7 @@ namespace Al_BoomehDAL.Classes
 
             _backgroundJobClient.ContinueJobWith<INotificationEngine>(
             jobId,
-            x => x.NotificationEngine());
+            x => x.ReportsEngine());
 
         }
     }

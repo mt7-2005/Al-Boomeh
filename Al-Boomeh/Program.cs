@@ -1,6 +1,7 @@
 using Al_Boomeh.Api.Middleware;
 using Al_Boomeh.Authorization;
 using Al_Boomeh.Services;
+using Al_BoomehAPI.BackgroundServices;
 using Al_BoomehAPI.Middleware;
 using Al_BoomehDAL.Classes;
 using Al_BoomehDAL.Data;
@@ -8,8 +9,10 @@ using Al_BoomehDAL.Interfaces;
 using Al_BoomehDAL.Models;
 using Al_BoomehDAL.Seeding;
 using Al_BoomehServices;
+using Al_BoomehServices.Consumers;
 using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Jobs;
+using Al_BoomehServices.Publishers;
 using Al_BoomehServices.Services;
 using Al_BoomehServices.Validators;
 using FluentValidation;
@@ -22,7 +25,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Impl;
 using Serilog;
+using System;
 using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -143,6 +149,17 @@ builder.Services.AddSwaggerGen(options =>
 
 
 builder.Host.UseSerilog();
+var uri = builder.Configuration["RabbitMq:Uri"]
+          ?? throw new InvalidOperationException("RabbitMq:Uri is missing");
+
+var factory = new ConnectionFactory
+{
+    Uri = new Uri(uri),
+    ClientProvidedName = "al-boomeh"
+};
+
+IConnection connection = await factory.CreateConnectionAsync();
+builder.Services.AddSingleton(connection);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -185,8 +202,9 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICancelAbandonedOrders, OrderService>();
 builder.Services.AddScoped<IDailyReports, StoreService>();
+builder.Services.AddScoped<IAnalyticsService,AnalyticService>();
 builder.Services.AddScoped<ICreateDailyReport, StoreService>();
-builder.Services.AddScoped<INotificationEngine, StoreService>();
+builder.Services.AddScoped<INotificationEngine, NotificationEngineService>();
 builder.Services.AddScoped<ITokenCleanup, RefreshTokenService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
@@ -196,6 +214,12 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IOrderPlaced, OrderPlaced>();
+builder.Services.AddScoped<ISendOrderConfirmation,SendOrderConfirmation>();
+builder.Services.AddHostedService<NotificationsOrderPlaced>();
+builder.Services.AddHostedService<SavingAnalytics>();
+builder.Services.AddHostedService<ConfirmationWorker>();
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -212,22 +236,28 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAuthentication();
-app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+
+//app.UseHangfireDashboard("/hangfire", new DashboardOptions
+//{
+//    Authorization = new[] { new HangfireAuthorizationFilter() }
+//});
+
+//app.Services.GetRequiredService<IRecurringJobManager>()
+//    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), Cron.MinuteInterval(30));
+
+//app.Services.GetRequiredService<IRecurringJobManager>()
+//    .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
+
+
+// app.Services.GetRequiredService<IRecurringJobManager>()
+//    .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
+
+
+app.Lifetime.ApplicationStopping.Register(() =>
 {
-    Authorization = new[] { new HangfireAuthorizationFilter() }
+    connection.CloseAsync().GetAwaiter().GetResult();
 });
-
-app.Services.GetRequiredService<IRecurringJobManager>()
-    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), Cron.MinuteInterval(30));
-
-app.Services.GetRequiredService<IRecurringJobManager>()
-    .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
-
-
- app.Services.GetRequiredService<IRecurringJobManager>()
-    .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
 
 app.MapControllers();
 

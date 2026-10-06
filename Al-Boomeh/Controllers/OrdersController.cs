@@ -21,12 +21,13 @@ namespace Al_Boomeh.Controllers
         private readonly IOrderService _order;
         private readonly IConfiguration _configuration;
         private readonly IUserService _usersService;
-        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService)
+        private readonly ISendOrderConfirmation _sendOrderConfirmation;
+        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService, ISendOrderConfirmation sendOrderConfirmation)
         {
-            _usersService= usersService;
+            _usersService = usersService;
             _configuration = configuration;
             _order = order;
-            
+            _sendOrderConfirmation = sendOrderConfirmation;
         }
 
         [Authorize(Roles = "Admin")]
@@ -444,6 +445,21 @@ namespace Al_Boomeh.Controllers
                 return Forbid();
 
             return Ok(line);
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("send-messages")]
+        public async Task<ActionResult> CreateMessages([FromQuery] int count)
+        {
+            for (int i = 1; i <= count; i++)
+            {
+                await _sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
+                {
+                    SequenceNumber = i
+                });
+            }
+            return Ok();
         }
     }
 }

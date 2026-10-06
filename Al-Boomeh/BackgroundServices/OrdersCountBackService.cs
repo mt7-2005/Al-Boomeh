@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Al_BoomehServices.Jobs
+namespace Al_BoomehAPI.BackgroundServices
 {
     public class OrdersCountBackService:BackgroundService
     {
@@ -36,8 +36,8 @@ namespace Al_BoomehServices.Jobs
                         _logger.LogInformation(
                             "Pending :{penOrders} || Accepted: {acceptedOrders} || Preparing: {preOrders} || OutForDelivery: {shippingOrders}",
                              ordersCount.GetValueOrDefault(enStatus.Pending, 0),
-                             ordersCount.GetValueOrDefault(enStatus.Preparing, 0),
                              ordersCount.GetValueOrDefault(enStatus.Accepted, 0),
+                             ordersCount.GetValueOrDefault(enStatus.Preparing, 0),
                              ordersCount.GetValueOrDefault(enStatus.OutForDelivery, 0));
                     }
                 }

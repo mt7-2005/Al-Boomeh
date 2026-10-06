@@ -8,6 +8,19 @@ namespace Al_BoomehDAL.Classes
     
         public List<CreateOrderLineDTO> OrderLines { get; set; } = new List<CreateOrderLineDTO>();
     }
+    public class OrderPlacedEventDTO
+    {
+        public int OrderId { get; set; }
+        public int StoreId { get; set; }
+        public int CustomerId { get; set; }
+        public decimal Total { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+    }
+    public class SendOrderConfirmationDTO
+    {
+        public int SequenceNumber { get; set; }
+
+    }
 
     public class PlaceOrderDTO
     {

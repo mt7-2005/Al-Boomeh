@@ -25,6 +25,7 @@
 |View order historystatus|—|—|All|
 |Update product stock|—|Own store's|All|
 |Update OrderLines/Add|—|—|All
+|Send messages with count|—|—|All
 
 
 

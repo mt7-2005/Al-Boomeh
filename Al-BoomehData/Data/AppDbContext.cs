@@ -54,14 +54,19 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Store> Stores { get; set; }
 
     public virtual DbSet<DailyReport> DailyReports { get; set; }
+    public virtual DbSet<Analytics> Analytics { get; set; }
     public virtual DbSet<StoreIssue> StoreIssues { get; set; }
 
     public virtual DbSet<Voucher> Vouchers { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<ProcessedMessage> ProcessedMessages { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<RefreshToken>().Property(x => x.RowVersion).IsRowVersion();
+
+        modelBuilder.Entity<Analytics>().HasIndex(x=>x.StoreId).IsUnique();
+        modelBuilder.Entity<ProcessedMessage>().HasIndex(x=>x.MessageId).IsUnique();
 
         modelBuilder.Entity<Address>(entity =>
         {
