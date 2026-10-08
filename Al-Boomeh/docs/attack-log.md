@@ -35,6 +35,12 @@ Log in as Customer A. Use A's valid token to fetch Customer B's order by id. Exp
 **Endpoint:**`https://localhost:7027/api/Customers/6 -- PUT`- **Response :** `403` ✅
 **Endpoint:**`https://localhost:7027/api/Orders -- POST`  - **Response :** `403` ✅
 **Endpoint:**`https://localhost:7027/api/Customers/6/fav-stores --GET` - **Response :** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Customers/6/cards --GET` - **Response :** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Customers/6/cards --POST` - **Response :** `403` ✅
+**Endpoint:**`https://localhost:7027/api/Customers/6/vouchers --GET` - **Response :** `403` ✅
+
+**the issue is for admon only**
+
 
 
 
@@ -81,7 +87,10 @@ Let an access token expire, then call a protected endpoint. Expect `401`. Then u
 Reuse a refresh token you already rotated away. Expect rejection and the whole chain revoked.
 
 **Endpoint:**`https://localhost:7027/api/Auth/refresh`
-**response body :**This refresh token was already used. All sessions for this account have been signed out.
+**First token:**ItPf6UpBbDMzwYnL3pibgYqKDhCj2h/qy4kkzPP9DkzGByWLXQM01ZcQ6DxwvMwSPkk14VsXeMbOQYueQCPRgA==
+**response use tis token:**AEbsRoOQkubk2IzeeCthyFf209RnXo5UHzusnqiwn5Vx0J60K2eC94eaZ4Gk2cS4XLIhGagpaWiGk3fruBmjLg==
+**response to reuse same token:**This refresh token was already used. All sessions for this account have been signed out
+**response to use the second token:**This refresh token was already used. All sessions for this account have been signed out
 - **Response:** `401` ✅
 
 ---

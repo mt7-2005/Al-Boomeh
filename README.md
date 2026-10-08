@@ -12,6 +12,10 @@
 6. Run the API:
    `dotnet run --project Al-Boomeh`
 7. Open the Swagger page in your browser.
+8. Open HangFire dashboard:
+    `it open only for admin `
+    `open https://localhost:7027/hangfire port 7027 may differ depending on your launchSettings.json configuration `
+      
 
 ### Seeded accounts
 

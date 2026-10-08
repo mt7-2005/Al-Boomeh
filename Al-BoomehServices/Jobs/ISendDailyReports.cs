@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Jobs
 {
-    public interface IDailyReports
+    public interface ISendDailyReports
     {
         Task DailyReports();
     }

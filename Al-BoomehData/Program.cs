@@ -18,7 +18,6 @@ var services = new ServiceCollection();
 services.AddScoped<IAuditScope, AuditScope>();
 services.AddScoped<AuditingSaveChangesInterceptor>();
 
-// قبل AddDbContext
 services.AddScoped<ICurrentUser, SystemCurrentUser>();
 
 services.AddDbContext<AppDbContext>((sp, options) =>

@@ -487,7 +487,7 @@ namespace Al_BoomehDAL.Classes
                         order.Latitude = orderDTO.Latitude;
                     }
                     order.TotalAmount = total;
-                    order.PlacedAtUTC = DateTime.UtcNow;
+                    order.PlacedAtUtc = DateTime.UtcNow;
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     if (roweffected > 0)
@@ -539,7 +539,9 @@ namespace Al_BoomehDAL.Classes
     _context.Database.BeginTransactionAsync();
             try
             {
-                var order = await _context.Orders.Where(o => o.Id == orderId).FirstOrDefaultAsync();
+                var order = await _context.Orders
+                    .FromSqlInterpolated($"SELECT * FROM [Order] WITH (UPDLOCK, ROWLOCK) WHERE Id = {orderId}")
+                    .SingleOrDefaultAsync();
                 if (order == null) throw new NotFoundException($"Order not found with id {orderId}");
 
 
@@ -840,7 +842,7 @@ namespace Al_BoomehDAL.Classes
             Dictionary<enStatus, int> countpairsstatus = new Dictionary<enStatus, int>();
             var report = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PlacedAtUTC >= DateTime.UtcNow.Date && o.PlacedAtUTC < DateTime.UtcNow.AddDays(1))
+                .Where(o => o.PlacedAtUtc >= DateTime.UtcNow.Date && o.PlacedAtUtc < DateTime.UtcNow.AddDays(1))
                 .GroupBy(o => o.Status)
                 .Select(n => new
                 {
@@ -858,7 +860,8 @@ namespace Al_BoomehDAL.Classes
             
             var result = await _context.Orders
                 .AsNoTracking()
-                .CountAsync(o => o.PlacedAtUTC >= DateTime.UtcNow.Date && o.PlacedAtUTC < DateTime.UtcNow.AddDays(1));
+                .Where(o => o.Status == (int)enStatus.Pending || o.Status == (int)enStatus.Accepted || o.Status == (int)enStatus.Preparing || o.Status == (int)enStatus.OutForDelivery)
+                .CountAsync();
             return result;
 
         }
@@ -899,11 +902,12 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<decimal> AvgOrderValueLastMonth()
         {
-            decimal result = await _context.Orders
-                .AsNoTracking()
-                .Where(o => o.Status == (int)enStatus.Delivered && o.PlacedAtUTC >= DateTime.UtcNow.AddDays(-30))
-                .AverageAsync(n => n.TotalAmount.Value);
-            return result;
+            decimal? result = await _context.Orders.
+                AsNoTracking()
+                .Where(o => o.Status == (int)enStatus.Delivered && o.PlacedAtUtc >= DateTime.UtcNow.AddDays(-30))
+                .AverageAsync(n => n.TotalAmount);
+            
+            return result ?? 0;
 
         }
         public async Task<List<OrderStatusHistoryDTO>?> GetOrderStatusHistories(int orderid)
@@ -952,32 +956,35 @@ namespace Al_BoomehDAL.Classes
            
                var orderIds=await _context.Orders
                     .AsNoTracking()
-                    .Where(o=>o.Status==(int)enStatus.Pending && o.PlacedAtUTC <= DateTime.UtcNow.AddMinutes(-30))
+                    .Where(o=>o.Status==(int)enStatus.Pending && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30))
                     .OrderByDescending(o => o.Id)
                     .Select(o=>o.Id)
-                    .Take(10) //مبدئيا لانو في كثيييييير طلبات 
+                    .Take(100)
                     .ToListAsync();
+
+
+            var failures = new List<Exception>();
 
                 foreach (var penOrderId in orderIds)
                 {
                     using var transaction = await
                            _context.Database.BeginTransactionAsync();
-                try
-                {
-                    var order = await _context.Orders
+                   try
+                   {
+                     var order = await _context.Orders
                         .FromSqlInterpolated($"""
                             SELECT *
                             FROM [Order] WITH (UPDLOCK, ROWLOCK)
                             WHERE Id = {penOrderId}
                         """)
                           .SingleOrDefaultAsync();
-                    if (order == null) continue;
-                    var newOrderState = new OrderStatusHistory
-                    {
+                     if (order == null || order.Status != (int)enStatus.Pending) continue;
+                     var newOrderState = new OrderStatusHistory
+                     {
                         OrderId = penOrderId,
                         OldStatus = order.Status,
                         NewStatus = (int)enStatus.Cancelled
-                    };
+                     };
 
                     await _context.AddAsync(newOrderState);
 
@@ -987,8 +994,8 @@ namespace Al_BoomehDAL.Classes
                       .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
                       .ToDictionaryAsync(d => d.ProductId, d => d.Quantity);
 
-                    if (productsQuantity.Count > 0)
-                    {
+                     if (productsQuantity.Count > 0)
+                     {
                         foreach (var (productId, quantity) in productsQuantity)
                         {
                             await _context.Products
@@ -997,22 +1004,32 @@ namespace Al_BoomehDAL.Classes
                                     .SetProperty(p => p.StockQuantity, p => p.StockQuantity + (long)quantity)
                                     .SetProperty(p => p.IsOutOfStock, p => false));
                         }
-                    }
+                     }
                    
                     order.Status = (int)enStatus.Cancelled;
 
-                    using (_auditScope.Enable())
-                    {
+                      using (_auditScope.Enable())
+                      {
                         await _context.SaveChangesAsync();
                         transaction.Commit();
-                    }
+                      }
                     
-                }
-                catch
-                {
-                    transaction.Rollback();
-                }
+                   }
+                   catch (Exception ex)
+                   {
+                    await transaction.RollbackAsync();
+                    
+                    _context.ChangeTracker.Clear();
+                    
+                    _logger.LogError(ex, "Failed to cancel abandoned order {OrderId}", penOrderId);
+                    
+                    failures.Add(ex);
+                    }
 
+                }
+            if (failures.Count > 0) 
+            {
+                throw new AggregateException($"{failures.Count} abandoned orders failed to cancel.", failures); 
             }
 
         }

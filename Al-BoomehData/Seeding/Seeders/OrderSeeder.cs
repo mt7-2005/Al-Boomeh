@@ -83,6 +83,7 @@ namespace Al_BoomehDAL.Seeding.Seeders
                     Longitude = address.Longitude,
                     Distance = faker.Random.Double(0.5, 15),
                     CreatedAtUtc = orderDate,
+                    PlacedAtUtc = orderDate,
                     IsDeleted = false
                 };
                 orderlist.Add(order);

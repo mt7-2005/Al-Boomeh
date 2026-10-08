@@ -73,6 +73,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
+        options.Events = new JwtBearerEvents
+        { OnMessageReceived = context => 
+        {
+            if (context.Request.Path.StartsWithSegments("/hangfire") 
+            && context.Request.Cookies.TryGetValue("hangfire_token", out var token)) { context.Token = token; } return Task.CompletedTask;
+        }
+        };
     });
 builder.Services.AddScoped<IAuthorizationHandler, StoreOwnerOrAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, CustomerOwnerOrAdminHandler>();
@@ -171,7 +178,6 @@ builder.Services.AddScoped<AuditingSaveChangesInterceptor>();
 builder.Services.AddScoped<ISmsSender, SmsSender>();
 builder.Services.AddScoped<ISendOTP,OtpService>();
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddKeyedScoped<ICurrentUser, SystemCurrentUser>("system");
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 builder.Services.AddHostedService<OrdersCountBackService>();
 
@@ -201,10 +207,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICancelAbandonedOrders, OrderService>();
-builder.Services.AddScoped<IDailyReports, StoreService>();
+builder.Services.AddScoped<ISendDailyReports, StoreService>();
 builder.Services.AddScoped<IAnalyticsService,AnalyticService>();
 builder.Services.AddScoped<ICreateDailyReport, StoreService>();
-builder.Services.AddScoped<INotificationEngine, NotificationEngineService>();
 builder.Services.AddScoped<ITokenCleanup, RefreshTokenService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
@@ -219,6 +224,7 @@ builder.Services.AddScoped<ISendOrderConfirmation,SendOrderConfirmation>();
 builder.Services.AddHostedService<NotificationsOrderPlaced>();
 builder.Services.AddHostedService<SavingAnalytics>();
 builder.Services.AddHostedService<ConfirmationWorker>();
+builder.Services.AddScoped<INotificationEngine, LogNotificationEngine>();
 
 var app = builder.Build();
 
@@ -235,23 +241,22 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAuthentication();
 
 
-//app.UseHangfireDashboard("/hangfire", new DashboardOptions
-//{
-//    Authorization = new[] { new HangfireAuthorizationFilter() }
-//});
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
 
-//app.Services.GetRequiredService<IRecurringJobManager>()
-//    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), Cron.MinuteInterval(30));
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), "*/30 * * * *");
 
-//app.Services.GetRequiredService<IRecurringJobManager>()
-//    .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
 
 
-// app.Services.GetRequiredService<IRecurringJobManager>()
-//    .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
+app.Services.GetRequiredService<IRecurringJobManager>()
+   .AddOrUpdate<ISendDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
 
 
 app.Lifetime.ApplicationStopping.Register(() =>

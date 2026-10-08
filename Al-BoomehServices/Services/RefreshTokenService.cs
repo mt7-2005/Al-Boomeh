@@ -93,15 +93,17 @@ namespace Al_BoomehServices.Services
         }
         public async Task TokenCleanup()
         {
-            var teokenList=await _context.RefreshTokens
-                .Where(r=>r.ExpiresAtUtc < DateTime.UtcNow&&r.RefreshTokenRevokedAt<=DateTime.UtcNow.AddDays(-7))
+            var now = DateTime.UtcNow;
+            
+            var tokenList = await _context.RefreshTokens
+                .Where(r => r.ExpiresAtUtc < now || (r.RefreshTokenRevokedAt != null && r.RefreshTokenRevokedAt <= now.AddDays(-7)))
                 .ToListAsync();
 
-            if (teokenList.Any())
+            if (tokenList.Any())
             {
-                _context.RemoveRange(teokenList);   
+                _context.RemoveRange(tokenList);   
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Deleted {Count} expired refresh tokens.", teokenList.Count);
+                _logger.LogInformation("Deleted {Count} expired refresh tokens.", tokenList.Count);
             }
             else
             {

@@ -102,8 +102,13 @@ namespace Al_BoomehServices.Consumers
                 {
                     var message = Encoding.UTF8.GetString(ea.Body.ToArray());
                     var order = JsonSerializer.Deserialize<OrderPlacedEventDTO>(ea.Body.Span);
-
+                    
+                    
                     using var scope = _scopeFactory.CreateScope();
+
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    string? email =await userService.GetPartnerEmail(order.StoreId);
+
                     var engine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
                     var sendOrderConfirmation = scope.ServiceProvider.GetRequiredService<ISendOrderConfirmation>();
 
@@ -112,7 +117,7 @@ namespace Al_BoomehServices.Consumers
                         throw new Exception("Poison message test");
                     }
 
-                    engine.MessagesEngine(message);
+                    await engine.SendAsync(email!, "Order info",message);
                     sequenceNumber++;
                     await sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
                     {

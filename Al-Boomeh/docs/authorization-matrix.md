@@ -20,6 +20,7 @@
 |View avg order value|—|—|All|
 |Update order time|—|Own store's|All|
 |Add/update order line|—|—|All|
+|Get Order Lines|—|Own store's|All|
 |View order status history|—|—|All|
 |View order count|—|Own store's|All|
 |View order historystatus|—|—|All|

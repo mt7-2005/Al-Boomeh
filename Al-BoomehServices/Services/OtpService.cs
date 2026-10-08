@@ -39,9 +39,9 @@ namespace Al_BoomehServices.Services
                 .FirstOrDefaultAsync();
 
             if (otp != null)
-                throw new BusinessRuleException($"Can't send another active code to the number {phone}");
-            
-                string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+                return;
+
+            string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
                 DateTime now= DateTime.UtcNow;
                 var newOtp = new OtpCode
                 {

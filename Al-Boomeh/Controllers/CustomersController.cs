@@ -211,12 +211,19 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<CardDTO>>> GetCustomerCards(int id)
+        public async Task<ActionResult<List<CardDTO>>> GetCustomerCards(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0) return BadRequest("Invalid Data");
 
             if (!await _customersService.IsExist(id)) return NotFound($"No customer with id {id}");
 
+            var authResult = await authorizationService.AuthorizeAsync(
+                 User,
+                 id,
+                 "CustomerOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid();
 
             var cards = await _customersService.GetCustomerCards(id);
             if (cards == null || cards.Count == 0) return NotFound("No cards found");

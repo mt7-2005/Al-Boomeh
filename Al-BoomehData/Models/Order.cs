@@ -10,7 +10,7 @@ public partial class Order:BaseEntity,IAuditable
     public int OrderType { get; set; }
     public string? OrderCode { get; set; }
 
-    public DateTime PlacedAtUTC { get; set; }
+    public DateTime? PlacedAtUtc { get; set; } 
     public int CustomerId { get; set; }
 
     public int StoreId { get; set; }

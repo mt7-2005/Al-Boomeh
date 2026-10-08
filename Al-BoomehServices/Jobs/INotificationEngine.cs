@@ -8,7 +8,6 @@ namespace Al_BoomehServices.Jobs
 {
     public interface INotificationEngine
     {
-        Task ReportsEngine();
-        void MessagesEngine(string message);
+        Task SendAsync(string recipientEmail, string subject, string body);
     }
 }

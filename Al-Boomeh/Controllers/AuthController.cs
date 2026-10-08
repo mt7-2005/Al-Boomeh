@@ -85,6 +85,13 @@ namespace Al_Boomeh.Controllers
 
 
             string accessToken = BuildAccessToken(user);
+            if (user.Role == Al_BoomehDAL.Models.User.UserRole.Admin)
+            {
+                Response.Cookies.Append("hangfire_token", accessToken, new CookieOptions
+                {
+                    HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Path = "/hangfire", Expires = DateTimeOffset.UtcNow.AddMinutes(15)
+                });
+            }
             var refreshToken = GenerateRefreshToken();
 
            DateTime expirationDate = DateTime.UtcNow.AddDays(7);
@@ -114,6 +121,7 @@ namespace Al_Boomeh.Controllers
         [HttpPut("Verify")]
         public async Task<IActionResult> Verify(string phone, string code)
         {
+            if (string.IsNullOrEmpty(phone) || phone.Length < 10 || !phone.All(char.IsDigit)) return BadRequest("Invalid input");
 
             var result = await _otpService.Verify(phone, code);
 

@@ -10,6 +10,7 @@ namespace Al_BoomehDAL.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+
            
         }
 

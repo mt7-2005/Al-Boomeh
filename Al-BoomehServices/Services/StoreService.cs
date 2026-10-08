@@ -20,7 +20,7 @@ namespace Al_BoomehDAL.Classes
         Open,
         Busy,
     }
-    public class StoreService: IStoreService, ICreateDailyReport, IDailyReports
+    public class StoreService: IStoreService, ICreateDailyReport, ISendDailyReports
     {
         private readonly AppDbContext _context;
         private readonly ILogger<StoreService> _logger;
@@ -337,13 +337,15 @@ namespace Al_BoomehDAL.Classes
             var today = DateTime.UtcNow.Date; 
             var yesterday = today.AddDays(-1);
 
+            var reportDate = DateOnly.FromDateTime(yesterday);
+            if (await _context.DailyReports.AnyAsync(r => r.ReportDateUtc == reportDate)) { return; }
+
             var storeOrderCounts = await _context.Orders
-              .Where(o => _context.OrderStatusHistories
-                  .Any(s => s.OrderId == o.Id
-                          && s.CreatedAtUtc >= yesterday && s.CreatedAtUtc < today
-                          && (s.NewStatus == (int)enStatus.Cancelled
-                           || s.NewStatus == (int)enStatus.Delivered
-                           || s.NewStatus == (int)enStatus.Decline)))
+              .Where(o => o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
+              && (o.Status == (int)enStatus.Cancelled
+                           || o.Status == (int)enStatus.Delivered
+                           || o.Status == (int)enStatus.Decline
+                  ))
               .GroupBy(o => o.StoreId)
               .Select(g => new
               {
@@ -354,10 +356,8 @@ namespace Al_BoomehDAL.Classes
               .ToDictionaryAsync(d=>d.StoreId,d=>d.OrderCount);
 
             var totalRevenue=await _context.Orders
-                .Where(o=>o.Status==(int)enStatus.Delivered && _context.OrderStatusHistories
-                  .Any(s => s.OrderId == o.Id
-                          && s.CreatedAtUtc >= yesterday && s.CreatedAtUtc < today
-                          && s.NewStatus == (int)enStatus.Delivered))
+                .Where(o=>o.Status==(int)enStatus.Delivered &&o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
+                 && o.Status == (int)enStatus.Delivered)
                 .GroupBy(o => o.StoreId)
                 .Select(r=> new
                 {
@@ -368,13 +368,8 @@ namespace Al_BoomehDAL.Classes
                 .ToDictionaryAsync(d => d.StoreId, d => d.TotalSummery);
 
             var orderIds = await _context.Orders
-               .Where(o =>
-                   o.Status == (int)enStatus.Delivered &&
-                   _context.OrderStatusHistories.Any(s =>
-                       s.OrderId == o.Id &&
-                       s.CreatedAtUtc >= yesterday &&
-                       s.CreatedAtUtc < today &&
-                       s.NewStatus == (int)enStatus.Delivered))
+               .Where(o => o.Status == (int)enStatus.Delivered && o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
+                 && o.Status == (int)enStatus.Delivered)
                .GroupBy(o => o.StoreId)
                .Select(g => new
                {
@@ -407,6 +402,7 @@ namespace Al_BoomehDAL.Classes
                     StoreId =store.StoreId,
                     ProductId=topProduct.ProductId,
                     TotalRevenue = totalRevenue[store.StoreId].Value,
+                    ReportDateUtc=reportDate,
                     OrderCount = storeOrderCounts.GetValueOrDefault(store.StoreId, 0),
                 };
                 await _context.AddAsync(report);
@@ -419,11 +415,40 @@ namespace Al_BoomehDAL.Classes
         public async Task DailyReports()
         {
             var jobId = _backgroundJobClient.Enqueue<ICreateDailyReport>(
-           x => x.CreateDailyReport());
+            x => x.CreateDailyReport());
 
-            _backgroundJobClient.ContinueJobWith<INotificationEngine>(
-            jobId,
-            x => x.ReportsEngine());
+            var reports = await _context.DailyReports
+                .Where(r => !r.IsSent)
+                .ToListAsync();
+
+            if (!reports.Any())
+            {
+                _logger.LogInformation("No new reports to send.");
+                return;
+            }
+
+            foreach (var report in reports)
+            {
+                var email = await _context.Users
+                    .Where(u => u.StoreId == report.StoreId)
+                    .Select(u => u.Email)
+                    .FirstOrDefaultAsync();
+                if (email == null) continue;
+                var sb = new StringBuilder();
+                sb.AppendLine("\n--------------------------------------");
+                sb.AppendLine($"\tStoreId: {report.StoreId}");
+                sb.AppendLine($"\tTop Product: {report.ProductId}");
+                sb.AppendLine($"\tOrders Count: {report.OrderCount}");
+                sb.AppendLine($"\tTotal Revenue: {report.TotalRevenue}");
+                sb.AppendLine("--------------------------------------");
+
+                report.IsSent = true;
+
+                await _context.SaveChangesAsync();
+                _backgroundJobClient.ContinueJobWith<INotificationEngine>(
+                jobId,
+                x => x.SendAsync(email, "Daily report", sb.ToString()));
+            }
 
         }
     }

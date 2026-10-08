@@ -13,6 +13,7 @@ public partial class DailyReport
     public int OrderCount { get; set; }
     public decimal TotalRevenue { get; set; }
     public bool IsSent {  get; set; }
+    public DateOnly ReportDateUtc { get; set; }
     public int ProductId { get; set; }
     public Product Product { get; set; } 
 }
