@@ -451,5 +451,22 @@ namespace Al_BoomehDAL.Classes
             }
 
         }
+        public async Task<bool> AddProcessedMessage(Guid messageId, string consumer)
+        {
+            await _context.ProcessedMessages.AddAsync(new ProcessedMessage { MessageId = messageId, Consumer = consumer });
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            
+            catch (DbUpdateException ex)
+                when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlException
+                      && (sqlException.Number == 2601 || sqlException.Number == 2627))
+            {
+                _logger.LogInformation("Message {MessageId} was already processed. Skipping it.", messageId);
+                return false;
+            }
+            return true;
+        }
     }
 }

@@ -22,63 +22,48 @@ namespace Al_BoomehServices.Services
             _logger = logger;
         }
 
-        public async Task<bool> UpdateAnalytic(int storeId,decimal totalRevenue,Guid messageId)
+        public async Task<bool> UpdateAnalytic(int storeId, decimal totalRevenue, Guid messageId)
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            var transaction = await _context.Database.BeginTransactionAsync();
+            _context.ProcessedMessages.Add(new ProcessedMessage { MessageId = messageId, Consumer = "analytics" });
+
             try
             {
-
-                var message = new ProcessedMessage
-                {
-                    MessageId = messageId
-                };
-                await _context.AddAsync(message);
-
-                var store = await _context.Analytics
-                    .FirstOrDefaultAsync(s => s.StoreId == storeId);
-
-                if (store != null)
-                {
-                    store.TotalRevenue += totalRevenue;
-                    store.OrderCount++;
-                    store.LastUpdateUtc = DateTime.UtcNow;
-
-
-                }
-                else
-                {
-                    var newStore = new Analytics()
-                    {
-                        StoreId = storeId,
-                        TotalRevenue = totalRevenue,
-                        OrderCount = 1,
-                        LastUpdateUtc = DateTime.UtcNow
-                    };
-                    await _context.AddAsync(newStore);
-                }
-
-                int rowsEffect = await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                if (rowsEffect > 0)
-                {
-                    _logger.LogInformation("Analytics updated for store with Id {StoreId}", storeId);
-                    return true;
-                }
+                await _context.SaveChangesAsync();
             }
-            catch(DbUpdateException ex)
-              when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlException
-            && (sqlException.Number == 2601 || sqlException.Number == 2627))
+            catch (DbUpdateException ex)
+                when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlException
+                      && (sqlException.Number == 2601 || sqlException.Number == 2627))
             {
-                await transaction.RollbackAsync();
-                throw new BusinessRuleException("Failed to add analytics");
+                _logger.LogInformation("Message {MessageId} was already processed. Skipping it.", messageId);
+                return false;
             }
-            catch
+
+            var store = await _context.Analytics.FirstOrDefaultAsync(s => s.StoreId == storeId);
+
+            if (store != null)
             {
-                await transaction.RollbackAsync();
-                throw;
+                store.TotalRevenue += totalRevenue;
+                store.OrderCount++;
+                store.LastUpdateUtc = DateTime.UtcNow;
             }
-            return false;
+            else
+            {
+                _context.Analytics.Add(new Analytics
+                {
+                    StoreId = storeId,
+                    TotalRevenue = totalRevenue,
+                    OrderCount = 1,
+                    LastUpdateUtc = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation("Analytics updated for store with Id {StoreId}", storeId);
+            return true;
         }
 
         public async Task<AnalyticsDTO?> GetAnalytics(int storeId)
@@ -94,7 +79,7 @@ namespace Al_BoomehServices.Services
                     LastUpdateUtc=a.LastUpdateUtc
                 }).FirstOrDefaultAsync();
 
-            return analytic;
+            return analytic ?? throw new NotFoundException($"Store {storeId} has no sales yet.");
         }
 
         public async Task<List<AnalyticsDTO>?> GetAllAnalytics()

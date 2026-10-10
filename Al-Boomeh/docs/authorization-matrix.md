@@ -27,6 +27,7 @@
 |Update product stock|—|Own store's|All|
 |Update OrderLines/Add|—|—|All
 |Send messages with count|—|—|All
+|View analytics|—|Own store's|All|
 
 
 

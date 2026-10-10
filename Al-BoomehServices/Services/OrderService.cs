@@ -448,8 +448,7 @@ namespace Al_BoomehDAL.Classes
 
                     order.PaymentMethod = (int)orderDTO.PaymentMethod;
                     order.StoreNotes = orderDTO.StoreNotes;
-                    order.Tax = store.Tax;
-
+                    order.Tax = store.Tax ?? 0;
                     total += order.Tax.Value;
 
 
@@ -515,18 +514,14 @@ namespace Al_BoomehDAL.Classes
                     throw new ValidationException(errors);
 
                 }
-                catch (Exception e)
-                {
-
-                    throw new BusinessRuleException("Failed to place order " + e);
-                }
+              
                 try
                 {
                     await _orderPlaced.Publish(evt!);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogInformation(ex.Message);
+                    _logger.LogError(ex, "OrderPlaced was not published for order {OrderId}", orderId);
                 }
                 return true;
             }

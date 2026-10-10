@@ -6,16 +6,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 
 namespace Al_BoomehServices.Publishers
 {
-    public class SendOrderConfirmation: ISendOrderConfirmation
+    public class SendOrderConfirmation: ISendOrderConfirmation, IAsyncDisposable
     {
         private readonly IConnection _connection;
+        private IChannel? _channel;
+        private readonly SemaphoreSlim _channelLock = new(1, 1);
+
+
 
         private const string QueueName = "order-confirmation";
+
+
 
         public SendOrderConfirmation(IConnection connection)
         {
@@ -24,37 +31,47 @@ namespace Al_BoomehServices.Publishers
 
         public async Task SendConfirmation(SendOrderConfirmationDTO sendOrderConfirmationDTO)
         {
-            await using var channel = await _connection.CreateChannelAsync();
-
-            await channel.QueueDeclareAsync(
-                queue: QueueName,
-                durable: true,
-                exclusive: false,
-                autoDelete: false);
-
-            var message = new
+            await _channelLock.WaitAsync();
+            try
             {
-                SequenceNumber = sendOrderConfirmationDTO.SequenceNumber,
-            };
-
-            var body = JsonSerializer.SerializeToUtf8Bytes(message);
-
-            var props = new BasicProperties
-            {
-                MessageId = Guid.NewGuid().ToString(),
-                Persistent = true,
-                Headers = new Dictionary<string, object?>
+                if (_channel is null || _channel.IsClosed)
                 {
-                    ["version"] = 1
-                }
-            };
+                    _channel = await _connection.CreateChannelAsync();
 
-            await channel.BasicPublishAsync(
-                exchange: "",
-                routingKey: QueueName,
-                mandatory: false,
-                basicProperties: props,
-                body: body);
+                }
+
+
+                var body = JsonSerializer.SerializeToUtf8Bytes(sendOrderConfirmationDTO);
+
+                var props = new BasicProperties
+                {
+                    MessageId = Guid.NewGuid().ToString(),
+                    Persistent = true,
+                    Headers = new Dictionary<string, object?>
+                    {
+                        ["version"] = 1
+                    }
+                };
+
+                await _channel.BasicPublishAsync(
+                    exchange: "",
+                    routingKey: QueueName,
+                    mandatory: false,
+                    basicProperties: props,
+                    body: body);
+            }
+            finally
+            {
+                _channelLock.Release();
+            } 
+        }
+        public async ValueTask DisposeAsync()
+        {
+            if (_channel is not null)
+            {
+                await _channel.CloseAsync();
+            }
         }
     }
+
 }

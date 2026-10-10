@@ -1,49 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Al_BoomehDAL.Classes;
+﻿using Al_BoomehDAL.Classes;
+using Al_BoomehServices.Interfaces;
 using RabbitMQ.Client;
 using System.Text.Json;
-using Al_BoomehServices.Interfaces;
-
-
-namespace Al_BoomehServices.Publishers
+public class OrderPlaced : IOrderPlaced, IAsyncDisposable
 {
-    public class OrderPlaced:IOrderPlaced
+    private const string ExchangeName = "order-placed";
+
+    private readonly IConnection _connection;
+    private readonly SemaphoreSlim _channelLock = new(1, 1);
+    private IChannel? _channel;
+
+    public OrderPlaced(IConnection connection)
     {
-        private readonly IConnection _connection;
-        public OrderPlaced(IConnection connection)
-        {
-            _connection = connection;
-        }
+        _connection = connection;
+    }
 
-        public async Task Publish(OrderPlacedEventDTO orderDto)
+    public async Task Publish(OrderPlacedEventDTO orderDto)
+    {
+        await _channelLock.WaitAsync();
+        try
         {
-            await using var channel = await _connection.CreateChannelAsync();
-
-            await channel.ExchangeDeclareAsync("order-placed",
-                ExchangeType.Fanout,
-                 durable: true);
-            var testOrder = new OrderPlacedEventDTO
+            if (_channel is null || _channel.IsClosed)
             {
-                OrderId = 999999999,
-                StoreId = 1,
-                CustomerId = 1,
-                Total = 50,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-
-            var message= JsonSerializer.Serialize(testOrder);
-
-            var body = Encoding.UTF8.GetBytes(message);
-
-            var messageId = Guid.NewGuid().ToString();
+                _channel = await _connection.CreateChannelAsync();
+                await _channel.ExchangeDeclareAsync(ExchangeName, ExchangeType.Fanout, durable: true);
+            }
 
             var props = new BasicProperties
             {
-                MessageId = messageId,
+                MessageId = Guid.NewGuid().ToString(),
+                Type = "OrderPlaced",
                 Persistent = true,
                 Headers = new Dictionary<string, object?>
                 {
@@ -51,13 +37,24 @@ namespace Al_BoomehServices.Publishers
                 }
             };
 
-            await channel.BasicPublishAsync(
-                exchange: "order-placed",
+            await _channel.BasicPublishAsync(
+                exchange: ExchangeName,
                 routingKey: string.Empty,
                 mandatory: false,
                 basicProperties: props,
-                body: body);
+                body: JsonSerializer.SerializeToUtf8Bytes(orderDto));
+        }
+        finally
+        {
+            _channelLock.Release();
+        }
+    }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_channel is not null)
+        {
+            await _channel.CloseAsync();
         }
     }
 }

@@ -25,5 +25,6 @@ namespace Al_BoomehServices.Interfaces
         Task<StoreIssueDTO> GetStoreIssueById(int id);
         Task<int> AddIssueToStore(StoreIssueDTO issueDTO);
         Task<bool> DeleteIssueFromStore(int id);
+        Task<bool> AddProcessedMessage(Guid messageId, string consumer);
     }
 }

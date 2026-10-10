@@ -18,8 +18,9 @@ namespace Al_BoomehDAL.Classes
     }
     public class SendOrderConfirmationDTO
     {
+        public int OrderId { get; set; }
+        public int CustomerId { get; set; }
         public int SequenceNumber { get; set; }
-
     }
 
     public class PlaceOrderDTO

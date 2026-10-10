@@ -10,8 +10,8 @@ namespace Al_BoomehDAL.Models
     {
         public int Id { get; set; } 
         public Guid MessageId { get; set; }
+        public string Consumer { get; set; } = null!;
 
     }
 }
-//dotnet ef migrations add AddProcessedMessage
 

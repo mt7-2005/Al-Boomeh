@@ -16,6 +16,9 @@
     `it open only for admin `
     `open https://localhost:7027/hangfire port 7027 may differ depending on your launchSettings.json configuration `
       
+9. Run RabbitMQ :
+    `run the comand  docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management`
+    `open http://localhost:15672 and update "RabbitMq" link in appsettings like "Uri": "amqp://al-boomeh:123456@localhost:567%2f"`
 
 ### Seeded accounts
 

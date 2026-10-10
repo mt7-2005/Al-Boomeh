@@ -65,13 +65,21 @@ public partial class AppDbContext : DbContext
     {
         modelBuilder.Entity<RefreshToken>().Property(x => x.RowVersion).IsRowVersion();
 
+        modelBuilder.Entity<Analytics>()
+            .HasOne(a => a.Store).WithMany()
+            .HasForeignKey(a => a.StoreId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<DailyReport>(entity => { entity.HasIndex(e => new { e.StoreId, e.ReportDateUtc }).IsUnique();
             entity.Property(e => e.TotalRevenue).HasColumnType("decimal(18, 2)");
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.Restrict); });
 
         modelBuilder.Entity<Analytics>().HasIndex(x=>x.StoreId).IsUnique();
-        modelBuilder.Entity<ProcessedMessage>().HasIndex(x=>x.MessageId).IsUnique();
+        modelBuilder.Entity<ProcessedMessage>(entity =>
+        {
+            entity.Property(x => x.Consumer).HasMaxLength(50);
+            entity.HasIndex(x => new { x.MessageId, x.Consumer }).IsUnique();
+        });
 
         modelBuilder.Entity<Address>(entity =>
         {

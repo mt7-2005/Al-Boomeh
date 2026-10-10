@@ -27,7 +27,6 @@ namespace Al_BoomehServices.Consumers
 
         private const int MaxAttempts = 3;
 
-        static int sequenceNumber;
 
         private readonly IConnection _connection;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -102,7 +101,7 @@ namespace Al_BoomehServices.Consumers
                 {
                     var message = Encoding.UTF8.GetString(ea.Body.ToArray());
                     var order = JsonSerializer.Deserialize<OrderPlacedEventDTO>(ea.Body.Span);
-                    
+                    if(order==null) return;
                     
                     using var scope = _scopeFactory.CreateScope();
 
@@ -111,24 +110,24 @@ namespace Al_BoomehServices.Consumers
 
                     var engine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
                     var sendOrderConfirmation = scope.ServiceProvider.GetRequiredService<ISendOrderConfirmation>();
+                    var processedMessage=scope.ServiceProvider.GetRequiredService<IStoreService>();
 
-                    if (order?.OrderId == 999999999)
-                    {
-                        throw new Exception("Poison message test");
-                    }
+                    await processedMessage.AddProcessedMessage(Guid.Parse(ea.BasicProperties.MessageId!), "notifications");
+                   
 
                     await engine.SendAsync(email!, "Order info",message);
-                    sequenceNumber++;
+
                     await sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
                     {
-                        SequenceNumber = sequenceNumber
+                        OrderId = order.OrderId,
+                        CustomerId = order.CustomerId
                     });
 
                     await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 }
                 catch (Exception ex)
                 {
-                    var failedAttempts = GetFailedAttempts(ea.BasicProperties) + 1;
+                    var failedAttempts =ReadAttempts.GetFailedAttempts(ea.BasicProperties,QueueName) + 1;
 
                     _logger.LogError(ex,
                         "Failed to process message {MessageId}, attempt {Attempt}/{Max}",
@@ -179,38 +178,6 @@ namespace Al_BoomehServices.Consumers
                 cancellationToken: stoppingToken);
         }
 
-      
-        private static long GetFailedAttempts(IReadOnlyBasicProperties props)
-        {
-            if (props.Headers is null ||
-                !props.Headers.TryGetValue("x-death", out var raw) ||
-                raw is not List<object> deaths)
-            {
-                return 0;
-            }
-
-            foreach (var item in deaths)
-            {
-                if (item is not Dictionary<string, object> death) continue;
-
-                var queue = AsString(death.GetValueOrDefault("queue"));
-                var reason = AsString(death.GetValueOrDefault("reason"));
-
-                if (queue == QueueName && reason == "rejected")
-                {
-                    return death.TryGetValue("count", out var count) ? Convert.ToInt64(count) : 0;
-                }
-            }
-
-            return 0;
-        }
-
-        private static string? AsString(object? value) => value switch
-        {
-            byte[] bytes => Encoding.UTF8.GetString(bytes),
-            string s => s,
-            _ => null
-        };
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {

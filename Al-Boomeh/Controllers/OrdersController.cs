@@ -22,12 +22,15 @@ namespace Al_Boomeh.Controllers
         private readonly IConfiguration _configuration;
         private readonly IUserService _usersService;
         private readonly ISendOrderConfirmation _sendOrderConfirmation;
-        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService, ISendOrderConfirmation sendOrderConfirmation)
+        private readonly IOrderPlaced _orderPlaced;
+        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService, ISendOrderConfirmation sendOrderConfirmation,
+            IOrderPlaced orderPlaced)
         {
             _usersService = usersService;
             _configuration = configuration;
             _order = order;
             _sendOrderConfirmation = sendOrderConfirmation;
+            _orderPlaced = orderPlaced;
         }
 
         [Authorize(Roles = "Admin")]
@@ -459,6 +462,21 @@ namespace Al_Boomeh.Controllers
                     SequenceNumber = i
                 });
             }
+            return Ok();
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("place-test-order")]
+        public async Task<ActionResult> PlaceTestOrder()
+        {
+            await _orderPlaced.Publish(new OrderPlacedEventDTO
+            {
+                OrderId = 999999999,
+                CreatedAtUtc = DateTime.UtcNow,
+                CustomerId = 2,
+                StoreId = 1,
+                Total = 54
+            });
             return Ok();
         }
     }
