@@ -34,6 +34,7 @@ namespace Al_BoomehServices.Interfaces
         Task<OrderLineDTO?> GetOrderLine(int id);
         Task<bool> IsOrderLineExist(int id);
         Task<bool> IsExist(int id);
+        Task<string?> GetCustomerEmail(int orderId);
 
 
     }

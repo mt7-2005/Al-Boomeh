@@ -1282,7 +1282,7 @@ namespace Al_BoomehDAL.Migrations
                     b.HasOne("Al_BoomehDAL.Models.Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Store");

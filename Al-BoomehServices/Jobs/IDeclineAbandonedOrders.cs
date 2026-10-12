@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehServices.Jobs
 {
-    public interface ICancelAbandonedOrders
+    public interface IDeclineAbandonedOrders
     {
-         Task CancelAbandonedOrders();
+         Task DeclineAbandonedOrders();
     }
 }

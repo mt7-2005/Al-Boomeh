@@ -51,8 +51,21 @@ namespace Al_BoomehServices.Services
                     ExpiresAt = now.AddMinutes(5),
                     IsUsed = false
                 };
-                await _context.AddAsync(newOtp);
-                int row = await _context.SaveChangesAsync();
+            await _context.AddAsync(newOtp);
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _smsSender.SendAsync(phone, $"The OTP :{newOtp.Code}");
+            }
+            catch
+            {
+                newOtp.ExpiresAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                throw;
+            }
+
+            int row = await _context.SaveChangesAsync();
                 if (row > 0)
                 {
                     await _smsSender.SendAsync(phone, $"The OTP :{newOtp.Code}");

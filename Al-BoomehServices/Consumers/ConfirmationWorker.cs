@@ -77,7 +77,7 @@ namespace Al_BoomehServices.Consumers
                 },
                 cancellationToken: stoppingToken);
 
-            await channel.BasicQosAsync(0, 0, global: false, cancellationToken: stoppingToken);
+               await channel.BasicQosAsync(0, 1, global: false, cancellationToken: stoppingToken);
 
             var consumer = new AsyncEventingBasicConsumer(channel);
             consumer.ReceivedAsync += async (model, ea) =>

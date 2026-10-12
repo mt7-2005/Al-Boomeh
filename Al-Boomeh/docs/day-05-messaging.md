@@ -75,7 +75,7 @@ flowchart TD
     E -->|3rd failure| M["notification-order-placed.dlq<br/>Dead Letter Queue"]
     E -->|nack, no requeue| K
 
-    J --> N["Send messages<br/>Endpoint"]
+    J --> N["SendOrderConfirmation<br/>Publisher"]
     N --> O["SendOrderConfirmation<br/>Publisher"]
     O -->|Publish| P["order-confirmation<br/>Work Queue"]
 
@@ -167,7 +167,7 @@ Of course, the beginning was hard because these are new terms. But the hardest p
 ## The Decision:
 I decided to record the MessageId before sending the notification.
 
-If the application crashes between these two operations, we risk losing the notification because, after restarting, the application will not resend it, as it is already recorded as processed in the ProcessedMessages table.
+If the application crashes between these two operations, an error now removes the saved id and retries. Only a crash loses the notification.
 
 However, if we choose the opposite approach, the notification might be sent multiple times without being recorded in ProcessedMessages. This could result in additional costs if an external service provider is involved, as well as making it impossible to track the notification properly.
 
@@ -186,5 +186,16 @@ A message in `notification-order-placed.dlq` failed three times and was parked.
      is gone, then move the message back to `notification-order-placed` (shovel plugin).
 4. **Before replaying:** the consumer records the message id before it notifies. If a
    row (message_id, 'notifications') survived the failure, the replay would be skipped
-   as already processed. Delete that row first:` DELETE FROM ProcessedMessages WHERE MessageId = '...' AND Consumer = 'notificationsّ`
+   as already processed. Delete that row first:` DELETE FROM ProcessedMessages WHERE MessageId = '...' AND Consumer = 'notificationsّ'`
 5. Verify the DLQ is empty and the notification arrived.
+
+## The dual-write gap.
+1. The code shown only creates evt and writes a log entry. I don’t see the actual publish call (BasicPublishAsync or similar). Most likely the publish comes after it in code you haven’t shown. If so, the gap is the distance between CommitAsync and that publish. Also, the log message "Order Place successfully" is written before the actual publish, so it may say “success” even though the event never left, which makes the problem harder to detect.
+2. For Case 2 (publish first, then the save fails), this code publishes after the commit, so it does not suffer from it in this order. If your exercise asks you to document both cases, Case 2 describes the reverse order (if the publish happened before the commit). In your documentation, state that your current code is exposed to Case 1 only, and that Case 2 appears if you change the order.
+
+**The gap sits between transaction.CommitAsync() and the publish of OrderPlaced. The SQL commit is durable, but the publish is a separate system with no shared transaction. If the process crashes in between, the order exists (stock decremented, included in the daily report) but no event is ever emitted, so notifications, confirmations and store analytics are silently missing.**
+
+## The Part 1 proofs.
+With the queue declared durable: true and the messages published as Persistent (DeliveryMode = Persistent), the messages stayed in the queue while no consumer was running. After I restarted RabbitMQ, they were still there, showing Ready = 3, and were delivered as soon as the consumer started.
+
+With the queue declared durable: false, the queue and its messages were lost after the restart, and the count went back to zero.

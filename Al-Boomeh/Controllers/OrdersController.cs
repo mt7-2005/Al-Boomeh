@@ -1,15 +1,17 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehDAL.Models;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Services;
 using Bogus.DataSets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using RabbitMQ.Client;
 using System.Threading.Tasks;
+using System.Text.Json;
 using static System.Runtime.InteropServices.JavaScript.JSType;
-using Al_BoomehServices.Interfaces;
 
 namespace Al_Boomeh.Controllers
 {
@@ -22,15 +24,12 @@ namespace Al_Boomeh.Controllers
         private readonly IConfiguration _configuration;
         private readonly IUserService _usersService;
         private readonly ISendOrderConfirmation _sendOrderConfirmation;
-        private readonly IOrderPlaced _orderPlaced;
-        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService, ISendOrderConfirmation sendOrderConfirmation,
-            IOrderPlaced orderPlaced)
+        public OrdersController(IOrderService order,IConfiguration configuration, IUserService usersService, ISendOrderConfirmation sendOrderConfirmation)
         {
             _usersService = usersService;
             _configuration = configuration;
             _order = order;
             _sendOrderConfirmation = sendOrderConfirmation;
-            _orderPlaced = orderPlaced;
         }
 
         [Authorize(Roles = "Admin")]
@@ -467,17 +466,39 @@ namespace Al_Boomeh.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpPost("place-test-order")]
-        public async Task<ActionResult> PlaceTestOrder()
+        public async Task<ActionResult> PlaceTestOrder([FromServices] IConnection connection)
         {
-            await _orderPlaced.Publish(new OrderPlacedEventDTO
+            await using var channel = await connection.CreateChannelAsync();
+
+            var props = new BasicProperties
+            {
+                MessageId = Guid.NewGuid().ToString(),
+                Type = "OrderPlaced",
+                Persistent = true,
+                Headers = new Dictionary<string, object?>
+                {
+                    ["version"] = 1
+                }
+            };
+
+            var testOrder = new OrderPlacedEventDTO
             {
                 OrderId = 999999999,
-                CreatedAtUtc = DateTime.UtcNow,
-                CustomerId = 2,
                 StoreId = 1,
-                Total = 54
-            });
+                CustomerId = 2,
+                Total = 54,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            await channel.BasicPublishAsync(
+                exchange: string.Empty,
+                routingKey: "notification-order-placed",
+                mandatory: false,
+                basicProperties: props,
+                body: JsonSerializer.SerializeToUtf8Bytes(testOrder));
+
             return Ok();
         }
+
     }
 }

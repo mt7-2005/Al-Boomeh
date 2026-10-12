@@ -39,7 +39,7 @@ namespace Al_BoomehDAL.Classes
         FourStar,
         FiveStar
     }
-    public class OrderService : IOrderService,ICancelAbandonedOrders
+    public class OrderService : IOrderService,IDeclineAbandonedOrders
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OrderService> _logger;
@@ -71,8 +71,8 @@ namespace Al_BoomehDAL.Classes
         {
             [enStatus.Holding] = new[] { enStatus.Pending },
             [enStatus.Pending] = new[] { enStatus.Accepted, enStatus.Decline },
-            [enStatus.Accepted] = new[] { enStatus.Preparing },
-            [enStatus.Preparing] = new[] { enStatus.OutForDelivery },
+            [enStatus.Accepted] = new[] { enStatus.Preparing, enStatus.Decline },
+            [enStatus.Preparing] = new[] { enStatus.OutForDelivery, enStatus.Decline },
             [enStatus.OutForDelivery] = new[] { enStatus.Delivered },
             [enStatus.Delivered] = Array.Empty<enStatus>(),
             [enStatus.Cancelled] = Array.Empty<enStatus>(),
@@ -543,6 +543,10 @@ namespace Al_BoomehDAL.Classes
 
                 var currentStatus = (enStatus)order.Status;
                 var targetStatus = statusdto.Status;
+                if (currentStatus == targetStatus)
+                {
+                    throw new BusinessRuleException($"The order is already {currentStatus}.");
+                }
 
                 bool isAdmin = _currentUser.Role == Al_BoomehDAL.Models.User.UserRole.Admin;
 
@@ -572,7 +576,7 @@ namespace Al_BoomehDAL.Classes
                 await _context.AddAsync(orderstatushistory);
                 order.Status = (int)statusdto.Status;
 
-                if (statusdto.Status == enStatus.Cancelled || statusdto.Status == enStatus.Decline)
+                if (statusdto.Status == enStatus.Decline)
                 {
                     var lines = await _context.OrderLines
                         .Where(l => l.OrderId == orderId)
@@ -837,7 +841,11 @@ namespace Al_BoomehDAL.Classes
             Dictionary<enStatus, int> countpairsstatus = new Dictionary<enStatus, int>();
             var report = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PlacedAtUtc >= DateTime.UtcNow.Date && o.PlacedAtUtc < DateTime.UtcNow.AddDays(1))
+                .Where(o => o.Status == (int)enStatus.Pending
+                || o.Status == (int)enStatus.Accepted
+                || o.Status == (int)enStatus.Preparing
+                || o.Status == (int)enStatus.OutForDelivery)
+
                 .GroupBy(o => o.Status)
                 .Select(n => new
                 {
@@ -852,14 +860,13 @@ namespace Al_BoomehDAL.Classes
         }
         public async Task<long> GetOrderCount()
         {
-            
-            var result = await _context.Orders
-                .AsNoTracking()
-                .Where(o => o.Status == (int)enStatus.Pending || o.Status == (int)enStatus.Accepted || o.Status == (int)enStatus.Preparing || o.Status == (int)enStatus.OutForDelivery)
-                .CountAsync();
-            return result;
+            var today = DateTime.UtcNow.Date;
 
+            return await _context.Orders
+                .AsNoTracking()
+                .CountAsync(o => o.PlacedAtUtc >= today && o.PlacedAtUtc < today.AddDays(1));
         }
+
 
         public async Task<int> CreateOrderFeedback(OrderFeedbackDTO feedbackDTO)
         {
@@ -946,89 +953,107 @@ namespace Al_BoomehDAL.Classes
             return result;
         }
 
-        public async Task CancelAbandonedOrders()
+        public async Task DeclineAbandonedOrders()
         {
-           
-               var orderIds=await _context.Orders
+
+            var failures = new List<Exception>();
+
+            int lastId = 0;
+
+            while (true)
+            {
+                var orderIds = await _context.Orders
                     .AsNoTracking()
-                    .Where(o=>o.Status==(int)enStatus.Pending && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30))
-                    .OrderByDescending(o => o.Id)
-                    .Select(o=>o.Id)
+                    .Where(o => o.Status == (int)enStatus.Pending
+                             && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
+                             && o.Id > lastId)
+                    .OrderBy(o => o.Id)
+                    .Select(o => o.Id)
                     .Take(100)
                     .ToListAsync();
 
+                if (orderIds.Count == 0) break;
 
-            var failures = new List<Exception>();
+
 
                 foreach (var penOrderId in orderIds)
                 {
                     using var transaction = await
                            _context.Database.BeginTransactionAsync();
-                   try
-                   {
-                     var order = await _context.Orders
-                        .FromSqlInterpolated($"""
+                    try
+                    {
+                        var order = await _context.Orders
+                           .FromSqlInterpolated($"""
                             SELECT *
                             FROM [Order] WITH (UPDLOCK, ROWLOCK)
                             WHERE Id = {penOrderId}
                         """)
-                          .SingleOrDefaultAsync();
-                     if (order == null || order.Status != (int)enStatus.Pending) continue;
-                     var newOrderState = new OrderStatusHistory
-                     {
-                        OrderId = penOrderId,
-                        OldStatus = order.Status,
-                        NewStatus = (int)enStatus.Cancelled
-                     };
-
-                    await _context.AddAsync(newOrderState);
-
-                    var productsQuantity = await _context.OrderLines
-                      .Where(l => l.OrderId == penOrderId)
-                      .GroupBy(l => l.ProductId)
-                      .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
-                      .ToDictionaryAsync(d => d.ProductId, d => d.Quantity);
-
-                     if (productsQuantity.Count > 0)
-                     {
-                        foreach (var (productId, quantity) in productsQuantity)
+                             .SingleOrDefaultAsync();
+                        if (order == null || order.Status != (int)enStatus.Pending) continue;
+                        var newOrderState = new OrderStatusHistory
                         {
-                            await _context.Products
-                                .Where(p => p.Id == productId)
-                                .ExecuteUpdateAsync(setters => setters
-                                    .SetProperty(p => p.StockQuantity, p => p.StockQuantity + (long)quantity)
-                                    .SetProperty(p => p.IsOutOfStock, p => false));
-                        }
-                     }
-                   
-                    order.Status = (int)enStatus.Cancelled;
+                            OrderId = penOrderId,
+                            OldStatus = order.Status,
+                            NewStatus = (int)enStatus.Decline
+                        };
 
-                      using (_auditScope.Enable())
-                      {
-                        await _context.SaveChangesAsync();
-                        transaction.Commit();
-                      }
-                    
-                   }
-                   catch (Exception ex)
-                   {
-                    await transaction.RollbackAsync();
-                    
-                    _context.ChangeTracker.Clear();
-                    
-                    _logger.LogError(ex, "Failed to cancel abandoned order {OrderId}", penOrderId);
-                    
-                    failures.Add(ex);
+                        await _context.AddAsync(newOrderState);
+
+                        var productsQuantity = await _context.OrderLines
+                          .Where(l => l.OrderId == penOrderId)
+                          .GroupBy(l => l.ProductId)
+                          .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                          .ToDictionaryAsync(d => d.ProductId, d => d.Quantity);
+
+                        if (productsQuantity.Count > 0)
+                        {
+                            foreach (var (productId, quantity) in productsQuantity)
+                            {
+                                await _context.Products
+                                    .Where(p => p.Id == productId)
+                                    .ExecuteUpdateAsync(setters => setters
+                                        .SetProperty(p => p.StockQuantity, p => p.StockQuantity + (long)quantity)
+                                        .SetProperty(p => p.IsOutOfStock, p => false));
+                            }
+                        }
+
+                        order.Status = (int)enStatus.Decline;
+
+                        using (_auditScope.Enable())
+                        {
+                            await _context.SaveChangesAsync();
+                            transaction.Commit();
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+
+                        _context.ChangeTracker.Clear();
+
+                        _logger.LogError(ex, "Failed to decline abandoned order {OrderId}", penOrderId);
+
+                        failures.Add(ex);
                     }
 
                 }
+            }
             if (failures.Count > 0) 
             {
-                throw new AggregateException($"{failures.Count} abandoned orders failed to cancel.", failures); 
+                throw new AggregateException($"{failures.Count} abandoned orders failed to decline.", failures); 
             }
 
         }
-           
-        
+        public async Task<string?> GetCustomerEmail(int orderId)
+        {
+            return await _context.Orders
+                .AsNoTracking()
+                .Where(o => o.Id == orderId)
+                .Select(o => o.Customer.Email)
+                .FirstOrDefaultAsync();
+        }
+
+
     }
 }

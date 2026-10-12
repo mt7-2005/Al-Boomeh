@@ -206,7 +206,8 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<ICancelAbandonedOrders, OrderService>();
+builder.Services.AddScoped<IDeclineAbandonedOrders, OrderService>();
+builder.Services.AddScoped<IDailyReports, StoreService>();
 builder.Services.AddScoped<ISendDailyReports, StoreService>();
 builder.Services.AddScoped<IAnalyticsService,AnalyticService>();
 builder.Services.AddScoped<ICreateDailyReport, StoreService>();
@@ -225,6 +226,8 @@ builder.Services.AddHostedService<NotificationsOrderPlaced>();
 builder.Services.AddHostedService<SavingAnalytics>();
 builder.Services.AddHostedService<ConfirmationWorker>();
 builder.Services.AddScoped<INotificationEngine, LogNotificationEngine>();
+builder.Services.AddScoped<IProcessedMessageService, ProcessedMessageService>();
+
 
 var app = builder.Build();
 
@@ -248,15 +251,15 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
     Authorization = new[] { new HangfireAuthorizationFilter() }
 });
 
-app.Services.GetRequiredService<IRecurringJobManager>()
-    .AddOrUpdate<ICancelAbandonedOrders>("cancel-abandoned-orders", x => x.CancelAbandonedOrders(), "*/30 * * * *");
+var recurringJobs = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobs.RemoveIfExists("cancel-abandoned-orders");
+recurringJobs.AddOrUpdate<IDeclineAbandonedOrders>( "decline-abandoned-orders", x => x.DeclineAbandonedOrders(),"*/5 * * * *");
 
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
 
-
 app.Services.GetRequiredService<IRecurringJobManager>()
-   .AddOrUpdate<ISendDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
+    .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");
 
 
 app.Lifetime.ApplicationStopping.Register(() =>

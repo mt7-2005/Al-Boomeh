@@ -6,7 +6,7 @@ namespace Al_BoomehDAL.Seeding.Seeders
 {
     public static class OrderSeeder
     {
-        private const int Pending = 1, Accepted = 2, Preparing = 3, OutForDelivery = 4, Delivered = 5, Cancelled = 6;
+        private const int Pending = 1, Accepted = 2, Preparing = 3, OutForDelivery = 4, Delivered = 5, Cancelled = 6, Declined = 7;
 
         private static readonly int[] FullSuccessPath = { Pending, Accepted, Preparing, OutForDelivery, Delivered };
         private static HashSet<string> _ordercode = new HashSet<string>();
@@ -147,15 +147,14 @@ namespace Al_BoomehDAL.Seeding.Seeders
                 ? faker.Random.Int(0, 90)
                 : faker.Random.Int(91, 365);
 
-            return DateTime.UtcNow.AddDays(-daysAgo).AddHours(faker.Random.Int(1, 23));
+            return DateTime.UtcNow.AddDays(-daysAgo).AddHours(-faker.Random.Int(4, 23));
         }
 
         private static int PickWeightedFinalStatus(Faker faker)
         {
             return faker.Random.WeightedRandom(
-                new[] { Delivered, Cancelled, Pending, Accepted, Preparing, OutForDelivery },
-                new[] { 0.70f, 0.10f, 0.05f, 0.05f, 0.05f, 0.05f }
-            );
+              new[] { Delivered, Declined, Cancelled, Pending, Accepted, Preparing, OutForDelivery },
+              new[] { 0.85f, 0.08f, 0.03f, 0.01f, 0.01f, 0.01f, 0.01f });
         }
 
         private static void GenerateStatusHistory(int orderId, int finalStatus, DateTime orderDate,
@@ -164,18 +163,12 @@ namespace Al_BoomehDAL.Seeding.Seeders
             var currentTime = orderDate;
             const int Holding = 0;
 
-            if (finalStatus == Cancelled)
+            int lastStep = finalStatus switch
             {
-                bool cancelledEarly = faker.Random.Bool(0.6f);
-                int cancelFromStatus = cancelledEarly ? Pending : Accepted;
-
-                AddHistoryStep(history, orderId, Holding, Pending, ref currentTime, faker);
-                if (!cancelledEarly)
-                    AddHistoryStep(history, orderId, Pending, Accepted, ref currentTime, faker);
-
-                AddHistoryStep(history, orderId, cancelFromStatus, Cancelled, ref currentTime, faker);
-                return;
-            }
+                Declined => faker.PickRandom(Pending, Accepted, Preparing),
+                Cancelled => OutForDelivery,
+                _ => finalStatus
+            };
 
             int previousStatus = Holding;
             foreach (var step in FullSuccessPath)
@@ -183,9 +176,15 @@ namespace Al_BoomehDAL.Seeding.Seeders
                 AddHistoryStep(history, orderId, previousStatus, step, ref currentTime, faker);
                 previousStatus = step;
 
-                if (step == finalStatus)
-                    break; 
+                if (step == lastStep)
+                    break;
             }
+
+            if (finalStatus == Declined || finalStatus == Cancelled)
+            {
+                AddHistoryStep(history, orderId, lastStep, finalStatus, ref currentTime, faker);
+            }
+
         }
 
         private static void AddHistoryStep(List<OrderStatusHistory> history, int orderId,

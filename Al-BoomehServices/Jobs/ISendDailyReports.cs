@@ -8,6 +8,6 @@ namespace Al_BoomehServices.Jobs
 {
     public interface ISendDailyReports
     {
-        Task DailyReports();
+        Task SendDailyReports();
     }
 }

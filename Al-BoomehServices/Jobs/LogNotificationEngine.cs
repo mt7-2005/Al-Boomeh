@@ -11,17 +11,17 @@ namespace Al_BoomehServices.Jobs
 {
     public class LogNotificationEngine:INotificationEngine
     {
-        private readonly AppDbContext _context;
         private readonly ILogger<INotificationEngine> _logger;
-        public LogNotificationEngine(AppDbContext context, ILogger<INotificationEngine> logger)
+        public LogNotificationEngine( ILogger<INotificationEngine> logger)
         {
-            _context = context;
             _logger = logger;
         }
-       
-        public async Task SendAsync(string recipientEmail, string subject, string body)
+
+        public Task SendAsync(string recipientEmail, string subject, string body)
         {
-            _logger.LogInformation($"Send to email {recipientEmail} \n {subject}\n {body}");
+            _logger.LogInformation("Notification to {RecipientEmail}: {Subject} {Body}", recipientEmail, subject, body);
+            return Task.CompletedTask;
         }
+
     }
 }

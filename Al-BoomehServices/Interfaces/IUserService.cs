@@ -16,6 +16,6 @@ namespace Al_BoomehServices.Interfaces
         Task<User?> GetUser(Guid userId);
         Task<User?> GetUserByPhone(string phone);
         Task<Guid> CreatePartner(PartnerDto partner);
-        Task<string?> GetPartnerEmail(int storeId);
+        Task<List<string>> GetPartnerEmails(int storeId);
     }
 }

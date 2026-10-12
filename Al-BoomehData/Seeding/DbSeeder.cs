@@ -43,6 +43,7 @@ namespace Al_BoomehDAL.Seeding
             table.Columns.Add("IdempotencyKey",typeof(string));
             table.Columns.Add("Distance", typeof(double));
             table.Columns.Add("CreatedAtUtc", typeof(DateTime));
+            table.Columns.Add("PlacedAtUtc", typeof(DateTime));
             table.Columns.Add("IsDeleted", typeof(bool));
             return table;
         }
@@ -74,6 +75,7 @@ namespace Al_BoomehDAL.Seeding
                 row["IdempotencyKey"] = Guid.NewGuid().ToString();
                 row["Distance"] = order.Distance ?? (object)DBNull.Value;
                 row["CreatedAtUtc"] = order.CreatedAtUtc;
+                row["PlacedAtUtc"] = order.PlacedAtUtc ?? (object)DBNull.Value;
                 row["IsDeleted"]  = false;
                 table.Rows.Add(row);
             }

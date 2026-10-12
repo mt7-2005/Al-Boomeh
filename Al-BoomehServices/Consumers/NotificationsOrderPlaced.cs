@@ -17,6 +17,8 @@ namespace Al_BoomehServices.Consumers
         private const string ExchangeName = "order-placed";
         private const string QueueName = "notification-order-placed";
 
+        private const string ConsumerName = "notifications";
+
         private const string RetryExchangeName = "order-placed.retry";
         private const string RetryQueueName = "notification-order-placed.retry";
         private const string RetryRoutingKey = "retry";
@@ -99,29 +101,49 @@ namespace Al_BoomehServices.Consumers
             {
                 try
                 {
-                    var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    var order = JsonSerializer.Deserialize<OrderPlacedEventDTO>(ea.Body.Span);
-                    if(order==null) return;
-                    
+                    var messageId = Guid.Parse(ea.BasicProperties.MessageId!);
+                    var order = JsonSerializer.Deserialize<OrderPlacedEventDTO>(ea.Body.Span)
+                        ?? throw new InvalidOperationException("The message has no OrderPlaced body.");
+
                     using var scope = _scopeFactory.CreateScope();
+                    var processedMessages = scope.ServiceProvider.GetRequiredService<IProcessedMessageService>();
 
-                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    string? email =await userService.GetPartnerEmail(order.StoreId);
-
-                    var engine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
-                    var sendOrderConfirmation = scope.ServiceProvider.GetRequiredService<ISendOrderConfirmation>();
-                    var processedMessage=scope.ServiceProvider.GetRequiredService<IStoreService>();
-
-                    await processedMessage.AddProcessedMessage(Guid.Parse(ea.BasicProperties.MessageId!), "notifications");
-                   
-
-                    await engine.SendAsync(email!, "Order info",message);
-
-                    await sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
+                    if (!await processedMessages.TryAdd(messageId, ConsumerName))
                     {
-                        OrderId = order.OrderId,
-                        CustomerId = order.CustomerId
-                    });
+                        await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                        return;
+                    }
+
+                    try
+                    {
+                        var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        var engine = scope.ServiceProvider.GetRequiredService<INotificationEngine>();
+                        var sendOrderConfirmation = scope.ServiceProvider.GetRequiredService<ISendOrderConfirmation>();
+
+                        string customerEmail = await orderService.GetCustomerEmail(order.OrderId)
+                            ?? throw new NotFoundException($"Order {order.OrderId} does not exist.");
+
+                        string body = $"Order {order.OrderId}, total {order.Total}";
+
+                        await engine.SendAsync(customerEmail, "Your order was placed", body);
+
+                        foreach (var partnerEmail in await userService.GetPartnerEmails(order.StoreId))
+                        {
+                            await engine.SendAsync(partnerEmail, "New order", body);
+                        }
+
+                        await sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
+                        {
+                            OrderId = order.OrderId,
+                            CustomerId = order.CustomerId
+                        });
+                    }
+                    catch
+                    {
+                        await processedMessages.Remove(messageId, ConsumerName);
+                        throw;
+                    }
 
                     await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 }

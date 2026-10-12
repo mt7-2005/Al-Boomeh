@@ -258,7 +258,7 @@ namespace Al_Boomeh.Controllers
             return Ok(partnerId);
         }
 
-        [HttpGet("{Id}/get-analytic", Name = "GetAnalytics")]
+        [HttpGet("analytics", Name = "GetAllAnalytics")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<AnalyticsDTO?>> GetAnalytics(int id, [FromServices] IAuthorizationService authorizationService)
         {

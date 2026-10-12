@@ -44,15 +44,16 @@ namespace Al_BoomehServices.Services
                 .FirstOrDefaultAsync();
             return user;
         }
-        public async Task<string?> GetPartnerEmail(int storeId)
+        public async Task<List<string>> GetPartnerEmails(int storeId)
         {
-            string? email = await _context.Users
-                   .Where(u => u.StoreId == storeId)
-                   .Select(u => u.Email)
-                   .FirstOrDefaultAsync();
-            return email;
+            return await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Role == User.UserRole.Partner && u.StoreId == storeId && u.Email != null)
+                .Select(u => u.Email!)
+                .ToListAsync();
         }
-       public async Task<User?> GetUserByPhone(string phone)
+
+        public async Task<User?> GetUserByPhone(string phone)
         {
             var user=await _context.Users
                 .Where(u=>u.Customer.Phone == phone)

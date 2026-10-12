@@ -20,19 +20,25 @@ namespace Al_BoomehDAL.Classes
         Open,
         Busy,
     }
-    public class StoreService: IStoreService, ICreateDailyReport, ISendDailyReports
+    public class StoreService: IStoreService, ICreateDailyReport, ISendDailyReports, IDailyReports
     {
         private readonly AppDbContext _context;
         private readonly ILogger<StoreService> _logger;
         private readonly IAuditScope _auditScope;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IUserService _userService;
+        private readonly INotificationEngine _notificationEngine;
 
-        public StoreService(AppDbContext context,ILogger<StoreService> logger, IAuditScope auditScope,IBackgroundJobClient backgroundJobClient)
+
+        public StoreService(AppDbContext context,ILogger<StoreService> logger, IAuditScope auditScope,IBackgroundJobClient backgroundJobClient
+            ,IUserService userService,INotificationEngine notificationEngine)
         {
             _logger = logger;
             _auditScope = auditScope;
             _context = context;
             _backgroundJobClient = backgroundJobClient;
+            _userService = userService;
+            _notificationEngine = notificationEngine;
         }
         public async Task<bool> IsExist(int id)
         {
@@ -340,12 +346,17 @@ namespace Al_BoomehDAL.Classes
             var reportDate = DateOnly.FromDateTime(yesterday);
             if (await _context.DailyReports.AnyAsync(r => r.ReportDateUtc == reportDate)) { return; }
 
+
+            var finishedYesterday = _context.OrderStatusHistories
+              .Where(s => s.CreatedAtUtc >= yesterday && s.CreatedAtUtc < today);
+
+
             var storeOrderCounts = await _context.Orders
-              .Where(o => o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
-              && (o.Status == (int)enStatus.Cancelled
-                           || o.Status == (int)enStatus.Delivered
-                           || o.Status == (int)enStatus.Decline
-                  ))
+              .Where(o => finishedYesterday.Any(s => s.OrderId == o.Id
+               && (s.NewStatus == (int)enStatus.Delivered
+                || s.NewStatus == (int)enStatus.Cancelled
+                || s.NewStatus == (int)enStatus.Decline)))
+
               .GroupBy(o => o.StoreId)
               .Select(g => new
               {
@@ -356,8 +367,11 @@ namespace Al_BoomehDAL.Classes
               .ToDictionaryAsync(d=>d.StoreId,d=>d.OrderCount);
 
             var totalRevenue=await _context.Orders
-                .Where(o=>o.Status==(int)enStatus.Delivered &&o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
-                 && o.Status == (int)enStatus.Delivered)
+                .Where(o => finishedYesterday.Any(s => s.OrderId == o.Id
+                 && (s.NewStatus == (int)enStatus.Delivered
+                  || s.NewStatus == (int)enStatus.Cancelled
+                  || s.NewStatus == (int)enStatus.Decline)))
+
                 .GroupBy(o => o.StoreId)
                 .Select(r=> new
                 {
@@ -411,62 +425,39 @@ namespace Al_BoomehDAL.Classes
 
            
         }
-       
-        public async Task DailyReports()
-        {
-            var jobId = _backgroundJobClient.Enqueue<ICreateDailyReport>(
-            x => x.CreateDailyReport());
 
+        public Task DailyReports()
+        {
+            var createJobId = _backgroundJobClient.Enqueue<ICreateDailyReport>(x => x.CreateDailyReport());
+
+            _backgroundJobClient.ContinueJobWith<ISendDailyReports>(createJobId, x => x.SendDailyReports());
+
+            return Task.CompletedTask;
+        }
+
+        public async Task SendDailyReports()
+        {
             var reports = await _context.DailyReports
                 .Where(r => !r.IsSent)
                 .ToListAsync();
 
-            if (!reports.Any())
-            {
-                _logger.LogInformation("No new reports to send.");
-                return;
-            }
-
             foreach (var report in reports)
             {
-                var email = await _context.Users
-                    .Where(u => u.StoreId == report.StoreId)
-                    .Select(u => u.Email)
-                    .FirstOrDefaultAsync();
-                if (email == null) continue;
-                var sb = new StringBuilder();
-                sb.AppendLine("\n--------------------------------------");
-                sb.AppendLine($"\tStoreId: {report.StoreId}");
-                sb.AppendLine($"\tTop Product: {report.ProductId}");
-                sb.AppendLine($"\tOrders Count: {report.OrderCount}");
-                sb.AppendLine($"\tTotal Revenue: {report.TotalRevenue}");
-                sb.AppendLine("--------------------------------------");
+                var partnerEmails = await _userService.GetPartnerEmails(report.StoreId);
+
+                string subject = $"Daily report {report.ReportDateUtc:yyyy-MM-dd}";
+                string body = $"Orders: {report.OrderCount}, revenue: {report.TotalRevenue}, top product: {report.ProductId}";
+
+                foreach (var email in partnerEmails)
+                {
+                    await _notificationEngine.SendAsync(email, subject, body);
+                }
 
                 report.IsSent = true;
-
-                await _context.SaveChangesAsync();
-                _backgroundJobClient.ContinueJobWith<INotificationEngine>(
-                jobId,
-                x => x.SendAsync(email, "Daily report", sb.ToString()));
-            }
-
-        }
-        public async Task<bool> AddProcessedMessage(Guid messageId, string consumer)
-        {
-            await _context.ProcessedMessages.AddAsync(new ProcessedMessage { MessageId = messageId, Consumer = consumer });
-            try
-            {
                 await _context.SaveChangesAsync();
             }
-            
-            catch (DbUpdateException ex)
-                when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlException
-                      && (sqlException.Number == 2601 || sqlException.Number == 2627))
-            {
-                _logger.LogInformation("Message {MessageId} was already processed. Skipping it.", messageId);
-                return false;
-            }
-            return true;
         }
+
+
     }
 }
