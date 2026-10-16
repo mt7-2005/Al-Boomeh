@@ -75,8 +75,7 @@ flowchart TD
     E -->|3rd failure| M["notification-order-placed.dlq<br/>Dead Letter Queue"]
     E -->|nack, no requeue| K
 
-    J --> N["SendOrderConfirmation<br/>Publisher"]
-    N --> O["SendOrderConfirmation<br/>Publisher"]
+    J --> O["SendOrderConfirmation<br/>Publisher"]
     O -->|Publish| P["order-confirmation<br/>Work Queue"]
 
     P --> Q["ConfirmationWorker<br/>Consumer, prefetch 1"]
@@ -167,7 +166,7 @@ Of course, the beginning was hard because these are new terms. But the hardest p
 ## The Decision:
 I decided to record the MessageId before sending the notification.
 
-If the application crashes between these two operations, an error now removes the saved id and retries. Only a crash loses the notification.
+an error removes the saved id, and the message is retried. A crash between saving the id and sending loses the notification.
 
 However, if we choose the opposite approach, the notification might be sent multiple times without being recorded in ProcessedMessages. This could result in additional costs if an external service provider is involved, as well as making it impossible to track the notification properly.
 
@@ -186,7 +185,7 @@ A message in `notification-order-placed.dlq` failed three times and was parked.
      is gone, then move the message back to `notification-order-placed` (shovel plugin).
 4. **Before replaying:** the consumer records the message id before it notifies. If a
    row (message_id, 'notifications') survived the failure, the replay would be skipped
-   as already processed. Delete that row first:` DELETE FROM ProcessedMessages WHERE MessageId = '...' AND Consumer = 'notificationsّ'`
+   as already processed. Delete that row first:` DELETE FROM ProcessedMessages WHERE MessageId = '...' AND Consumer = 'notifications'`
 5. Verify the DLQ is empty and the notification arrived.
 
 ## The dual-write gap.

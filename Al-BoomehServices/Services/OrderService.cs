@@ -492,6 +492,7 @@ namespace Al_BoomehDAL.Classes
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
+                    //Environment.Exit(1);
 
                     if (roweffected > 0)
                     {
