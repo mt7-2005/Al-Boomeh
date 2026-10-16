@@ -41,6 +41,8 @@ namespace Al_BoomehDAL.Classes
     }
     public class OrderService : IOrderService,IDeclineAbandonedOrders
     {
+        private static bool _crashedOnce = false;
+
         private readonly AppDbContext _context;
         private readonly ILogger<OrderService> _logger;
         private readonly IAuditScope _auditScope;
@@ -489,6 +491,8 @@ namespace Al_BoomehDAL.Classes
                     order.PlacedAtUtc = DateTime.UtcNow;
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
+
                     if (roweffected > 0)
                     {
                         evt = new OrderPlacedEventDTO
@@ -955,23 +959,28 @@ namespace Al_BoomehDAL.Classes
 
         public async Task DeclineAbandonedOrders()
         {
-
             var failures = new List<Exception>();
 
             int lastId = 0;
+           
 
             while (true)
             {
-                var orderIds = await _context.Orders
-                    .AsNoTracking()
-                    .Where(o => o.Status == (int)enStatus.Pending
-                             && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
-                             && o.Id > lastId)
-                    .OrderBy(o => o.Id)
-                    .Select(o => o.Id)
-                    .Take(100)
-                    .ToListAsync();
+                //var orderIds = await _context.Orders
+                //    .AsNoTracking()
+                //    .Where(o => o.Status == (int)enStatus.Pending
+                //             && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
+                //             && o.Id > lastId)
+                //    .OrderBy(o => o.Id)
+                //    .Select(o => o.Id)
+                //    .Take(100)
+                //    .ToListAsync();
 
+                var orderIds = new List<int>()
+                {
+                    300049,
+                    300050
+                };
                 if (orderIds.Count == 0) break;
 
 
@@ -1016,7 +1025,12 @@ namespace Al_BoomehDAL.Classes
                                         .SetProperty(p => p.IsOutOfStock, p => false));
                             }
                         }
-
+                        //if (!_crashedOnce)
+                        //{
+                        //    _crashedOnce = true;
+                        //    throw new Exception("Forced failure for the Part 4 experiment");
+                        //}
+                       
                         order.Status = (int)enStatus.Decline;
 
                         using (_auditScope.Enable())
