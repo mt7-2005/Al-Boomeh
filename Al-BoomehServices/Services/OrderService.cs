@@ -6,7 +6,7 @@ using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-
+using System.Text.Json;
 
 namespace Al_BoomehDAL.Classes
 {
@@ -487,21 +487,35 @@ namespace Al_BoomehDAL.Classes
                     }
                     order.TotalAmount = total;
                     order.PlacedAtUtc = DateTime.UtcNow;
+
+                    evt = new OrderPlacedEventDTO
+                    {
+                        StoreId = order.StoreId,
+                        CustomerId = order.CustomerId,
+                        OrderId = order.Id,
+                        Total = order.TotalAmount.Value,
+                        CreatedAtUtc = DateTime.UtcNow,
+                    };
+
+                    var outboxMessage = new OutboxMessage
+                    {
+                        Version = 1,
+                        MessageId = Guid.NewGuid(),
+                        LastErrorMessage = string.Empty,
+                        FailedCount = 0,
+                        EventName = "OrderPlaced",
+                        Payload = JsonSerializer.Serialize(evt)
+                    };
+
+                    await _context.OutboxMessages.AddAsync(outboxMessage);
+
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     if (roweffected > 0)
                     {
-                        evt = new OrderPlacedEventDTO
-                        {
-                            StoreId = order.StoreId,
-                            CustomerId = order.CustomerId,
-                            OrderId = order.Id,
-                            Total = order.TotalAmount.Value,
-                            CreatedAtUtc = DateTime.UtcNow,
-                        };
-
-                        _logger.LogInformation("Order Place successfully with order code {OrderCode}",
-                            order.OrderCode);
+                        
+                        _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:0}",
+                            order.OrderCode,DateTime.UtcNow);
 
                     }
                 }
@@ -515,14 +529,7 @@ namespace Al_BoomehDAL.Classes
 
                 }
               
-                try
-                {
-                    await _orderPlaced.Publish(evt!);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "OrderPlaced was not published for order {OrderId}", orderId);
-                }
+              
                 return true;
             }
         }

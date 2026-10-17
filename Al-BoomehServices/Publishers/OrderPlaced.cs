@@ -1,6 +1,8 @@
 ﻿using Al_BoomehDAL.Classes;
+using Al_BoomehServices.Dtos;
 using Al_BoomehServices.Interfaces;
 using RabbitMQ.Client;
+using System.Text;
 using System.Text.Json;
 
 namespace Al_BoomehServices.Publishers
@@ -18,7 +20,7 @@ namespace Al_BoomehServices.Publishers
             _connection = connection;
         }
 
-        public async Task Publish(OrderPlacedEventDTO orderDto)
+        public async Task Publish(MessageDto message)
         {
             await _channelLock.WaitAsync();
             try
@@ -31,21 +33,22 @@ namespace Al_BoomehServices.Publishers
 
                 var props = new BasicProperties
                 {
-                    MessageId = Guid.NewGuid().ToString(),
+                    MessageId = message.MessageId.ToString(),
                     Type = "OrderPlaced",
                     Persistent = true,
                     Headers = new Dictionary<string, object?>
                     {
-                        ["version"] = 1
+                        ["version"] = message.Version
                     }
                 };
+                var body = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(message.Body));
 
                 await _channel.BasicPublishAsync(
                     exchange: ExchangeName,
                     routingKey: string.Empty,
                     mandatory: false,
                     basicProperties: props,
-                    body: JsonSerializer.SerializeToUtf8Bytes(orderDto));
+                    body: body);
             }
             finally
             {

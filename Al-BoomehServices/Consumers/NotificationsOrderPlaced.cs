@@ -138,6 +138,8 @@ namespace Al_BoomehServices.Consumers
                             OrderId = order.OrderId,
                             CustomerId = order.CustomerId
                         });
+
+                        _logger.LogInformation("Consume at {Ts:0}", DateTime.UtcNow);
                     }
                     catch
                     {

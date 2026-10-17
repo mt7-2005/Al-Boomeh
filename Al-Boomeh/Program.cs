@@ -225,8 +225,11 @@ builder.Services.AddSingleton<ISendOrderConfirmation,SendOrderConfirmation>();
 builder.Services.AddHostedService<NotificationsOrderPlaced>();
 builder.Services.AddHostedService<SavingAnalytics>();
 builder.Services.AddHostedService<ConfirmationWorker>();
+builder.Services.AddHostedService<OutBoxRelay>();
 builder.Services.AddScoped<INotificationEngine, LogNotificationEngine>();
 builder.Services.AddScoped<IProcessedMessageService, ProcessedMessageService>();
+builder.Services.AddScoped<IOutBoxMessageService, OutBoxMessageService>();
+
 
 
 var app = builder.Build();
