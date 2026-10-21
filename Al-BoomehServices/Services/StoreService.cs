@@ -367,10 +367,9 @@ namespace Al_BoomehDAL.Classes
               .ToDictionaryAsync(d=>d.StoreId,d=>d.OrderCount);
 
             var totalRevenue=await _context.Orders
-                .Where(o => finishedYesterday.Any(s => s.OrderId == o.Id
-                 && (s.NewStatus == (int)enStatus.Delivered
-                  || s.NewStatus == (int)enStatus.Cancelled
-                  || s.NewStatus == (int)enStatus.Decline)))
+                .Where(o => o.Status == (int)enStatus.Delivered
+         && finishedYesterday.Any(s => s.OrderId == o.Id && s.NewStatus == (int)enStatus.Delivered))
+
 
                 .GroupBy(o => o.StoreId)
                 .Select(r=> new
@@ -382,8 +381,8 @@ namespace Al_BoomehDAL.Classes
                 .ToDictionaryAsync(d => d.StoreId, d => d.TotalSummery);
 
             var orderIds = await _context.Orders
-               .Where(o => o.Status == (int)enStatus.Delivered && o.PlacedAtUtc >= yesterday && o.PlacedAtUtc < today
-                 && o.Status == (int)enStatus.Delivered)
+               .Where(o => o.Status == (int)enStatus.Delivered
+         && finishedYesterday.Any(s => s.OrderId == o.Id && s.NewStatus == (int)enStatus.Delivered))
                .GroupBy(o => o.StoreId)
                .Select(g => new
                {
@@ -415,8 +414,8 @@ namespace Al_BoomehDAL.Classes
                 {
                     StoreId =store.StoreId,
                     ProductId=topProduct.ProductId,
-                    TotalRevenue = totalRevenue[store.StoreId].Value,
-                    ReportDateUtc=reportDate,
+                    TotalRevenue = totalRevenue.GetValueOrDefault(store.StoreId) ?? 0,
+                    ReportDateUtc = reportDate,
                     OrderCount = storeOrderCounts.GetValueOrDefault(store.StoreId, 0),
                 };
                 await _context.AddAsync(report);

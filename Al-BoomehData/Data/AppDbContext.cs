@@ -56,7 +56,6 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<DailyReport> DailyReports { get; set; }
     public virtual DbSet<Analytics> Analytics { get; set; }
     public virtual DbSet<StoreIssue> StoreIssues { get; set; }
-
     public virtual DbSet<Voucher> Vouchers { get; set; }
     public virtual DbSet<OutboxMessage> OutboxMessages { get; set; }
 
