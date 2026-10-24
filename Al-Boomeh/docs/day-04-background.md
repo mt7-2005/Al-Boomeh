@@ -136,7 +136,12 @@ Yes, there is no problem if the customer has to wait to receive the OTP because 
 - Case 1:
 If the job fails after the message has been sent, it is not sent again because it has already been saved. And if the job fails in general, the message is marked as expired.
 - Case 2:
+<<<<<<< HEAD
+On retry, the message never sent at all because a record of it already exists in the database, so the function returns early.
+Customer gets: no text. And "send again" does not help until the code expires, 5 minutes later.
+=======
 On retry, the message is not sent again because a record of it already exists in the database, so the function returns early.
+>>>>>>> origin/main
 
 
 ---
@@ -318,4 +323,9 @@ A new empty database (column missing): dotnet ef database update adds the column
 |22|17|12|1|
 |7|2|2|2|
 
+<<<<<<< HEAD
+**Order 30056 with productId =1 and quantity =5 / Order 30057 with productId =2 and quantity=5**
+
+=======
+>>>>>>> origin/main
 

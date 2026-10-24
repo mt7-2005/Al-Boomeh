@@ -9,7 +9,7 @@ namespace Al_BoomehServices.Interfaces
 {
     public interface ICategoryService
     {
-        Task<List<CategoryInfoDTO>> GetAllCategories(int pagenumber, int pagesize);
+        Task<List<CategoryInfoDTO>> GetAllCategories(int pageNumber, int pageSize);
         Task<CategoryInfoDTO?> GetCategoryById(int categoryId);
         Task<int> CreateCategory(CreateCategoryDTO categoryDTO);
         Task<bool> UpdateCategory(int categoryId, UpdateCategoryDTO categoryDTO);

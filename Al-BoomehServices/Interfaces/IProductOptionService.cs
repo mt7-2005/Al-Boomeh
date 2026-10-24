@@ -8,7 +8,7 @@ namespace Al_BoomehServices.Interfaces
 {
     public interface IProductOptionService
     {
-        Task<List<ExtraInfoDTO>> GetAllExtras(int pagenumber, int pagesize);
+        Task<List<ExtraInfoDTO>> GetAllExtras(int pageNumber, int pageSize);
         Task<bool> IsExist(int id);
         Task<List<ExtraInfoDTO>> GetExtrasByProduct(int productId);
         Task<List<ExtraInfoDTO>> GetMandatoryExtras(int productId);

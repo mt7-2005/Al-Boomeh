@@ -28,6 +28,14 @@
 |Update OrderLines/Add|—|—|All
 |Send messages with count|—|—|All
 |View analytics|—|Own store's|All|
+|View /Manage Drivers |—|—|All|
+|Manage ProductOptions |—|—|All|
+|Manage Categories |—|—|All|
+|Manage Vouchers |—|—|All|
+
+
+
+
 
 
 

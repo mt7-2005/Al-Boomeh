@@ -1,15 +1,17 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
 
 
 namespace Al_Boomeh.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ProductOptionsController : ControllerBase
     {
         private readonly IProductOptionService _extra;
@@ -19,10 +21,10 @@ namespace Al_Boomeh.Controllers
             _extra = extra;
         }
 
-        [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllExtras")]
+        [HttpGet( Name = "GetAllExtras")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ExtraInfoDTO>>> GetAllExtras(int pageNumber, int pageSize)
+        public async Task<ActionResult<List<ExtraInfoDTO>>> GetAllExtras([FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
             if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
@@ -44,11 +46,11 @@ namespace Al_Boomeh.Controllers
             return Ok(extra);
         }
 
-        [HttpGet("product/{productId}", Name = "GetExtrasByProduct")]
+        [HttpGet("by-product", Name = "GetExtrasByProduct")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ExtraInfoDTO>>> GetExtrasByProduct(int productId)
+        public async Task<ActionResult<List<ExtraInfoDTO>>> GetExtrasByProduct([FromQuery] int productId)
         {
             if (productId <= 0) return BadRequest("Invalid Data");
 
@@ -57,11 +59,11 @@ namespace Al_Boomeh.Controllers
             return Ok(extrasList);
         }
 
-        [HttpGet("{productId}/mandatory", Name = "GetMandatoryExtras")]
+        [HttpGet("mandatory", Name = "GetMandatoryExtras")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ExtraInfoDTO>>> GetMandatoryExtras(int productId)
+        public async Task<ActionResult<List<ExtraInfoDTO>>> GetMandatoryExtras([FromQuery] int productId)
         {
             if (productId <= 0) return BadRequest("Invalid Data");
 
@@ -70,7 +72,7 @@ namespace Al_Boomeh.Controllers
             return Ok(extrasList);
         }
 
-        [HttpGet(Name = "GetExtraCountPairsProduct")]
+        [HttpGet("count-by-product",Name = "GetExtraCountPairsProduct")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<Dictionary<int, int>>> GetExtraCountPairsProduct()
         {
@@ -78,7 +80,7 @@ namespace Al_Boomeh.Controllers
             if (countDic == null) return NotFound("No data found");
             return Ok(countDic);
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPost(Name = "AddExtra")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -91,12 +93,12 @@ namespace Al_Boomeh.Controllers
 
             return CreatedAtAction(nameof(GetExtraById), new { id = newId }, new { id = newId });
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}", Name = "UpdateExtra")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateExtra([FromQuery] int id, [FromBody] UpdateExtraDTO extraDTO)
+        public async Task<ActionResult> UpdateExtra(int id, [FromBody] UpdateExtraDTO extraDTO)
         {
             if (id <= 0 || extraDTO == null || extraDTO.Price < 0) return BadRequest("Invalid Data");
 
@@ -106,7 +108,7 @@ namespace Al_Boomeh.Controllers
             if (await _extra.UpdateExtra(id,extraDTO)) return Ok();
             return BadRequest("Failed to update extra");
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}", Name = "DeleteExtra")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

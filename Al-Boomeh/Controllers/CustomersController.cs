@@ -40,7 +40,7 @@ namespace Al_Boomeh.Controllers
         }
 
         //owner
-        [HttpGet("{customerId}/get-customers-orders", Name = "GetCustomerOrders")]
+        [HttpGet("{customerId}/orders", Name = "GetCustomerOrders")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

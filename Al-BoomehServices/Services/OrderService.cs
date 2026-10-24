@@ -109,7 +109,7 @@ namespace Al_BoomehDAL.Classes
 
             return code;
         }
-        public async Task<List<OrderInfoDTO>> GetAllOrders(int pagenumber, int pagesize)
+        public async Task<List<OrderInfoDTO>> GetAllOrders(int pageNumber, int pageSize)
         {
             var orderList = await _context.Orders
                                     .Select(o => new OrderInfoDTO
@@ -160,8 +160,8 @@ namespace Al_BoomehDAL.Classes
                                             NewStatus = (enStatus)s.NewStatus,
                                         }).ToList()
                                     }).OrderBy(o => o.OrderCode)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 
@@ -499,7 +499,7 @@ namespace Al_BoomehDAL.Classes
                         CreatedAtUtc = DateTime.UtcNow,
                     };
 
-                    var outboxMessage = new OutboxMessage
+                    var outboxMessage = new OutBoxMessage
                     {
                         Version = 1,
                         MessageId = Guid.NewGuid(),
@@ -519,7 +519,7 @@ namespace Al_BoomehDAL.Classes
                     if (roweffected > 0)
                     {
                         
-                        _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:0}",
+                        _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:O}",
                             order.OrderCode,DateTime.UtcNow);
 
                     }
@@ -974,21 +974,16 @@ namespace Al_BoomehDAL.Classes
 
             while (true)
             {
-                //var orderIds = await _context.Orders
-                //    .AsNoTracking()
-                //    .Where(o => o.Status == (int)enStatus.Pending
-                //             && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
-                //             && o.Id > lastId)
-                //    .OrderBy(o => o.Id)
-                //    .Select(o => o.Id)
-                //    .Take(100)
-                //    .ToListAsync();
+                var orderIds = await _context.Orders
+                    .AsNoTracking()
+                    .Where(o => o.Status == (int)enStatus.Pending
+                             && o.PlacedAtUtc <= DateTime.UtcNow.AddMinutes(-30)
+                             && o.Id > lastId)
+                    .OrderBy(o => o.Id)
+                    .Select(o => o.Id)
+                    .Take(100)
+                    .ToListAsync();
 
-                var orderIds = new List<int>()
-                {
-                    300049,
-                    300050
-                };
                 if (orderIds.Count == 0) break;
 
 
@@ -1033,11 +1028,7 @@ namespace Al_BoomehDAL.Classes
                                         .SetProperty(p => p.IsOutOfStock, p => false));
                             }
                         }
-                        //if (!_crashedOnce)
-                        //{
-                        //    _crashedOnce = true;
-                        //    throw new Exception("Forced failure for the Part 4 experiment");
-                        //}
+                       
                        
                         order.Status = (int)enStatus.Decline;
 
@@ -1060,6 +1051,8 @@ namespace Al_BoomehDAL.Classes
                     }
 
                 }
+                lastId = orderIds[^1];
+
             }
             if (failures.Count > 0) 
             {
@@ -1073,6 +1066,14 @@ namespace Al_BoomehDAL.Classes
                 .AsNoTracking()
                 .Where(o => o.Id == orderId)
                 .Select(o => o.Customer.Email)
+                .FirstOrDefaultAsync();
+        }
+        public async Task<int?> GetCartLineOwnerId(int lineId)
+        {
+            return await _context.OrderLines
+                .AsNoTracking()
+                .Where(l => l.Id == lineId && l.IsCart)
+                .Select(l => (int?)l.Order.CustomerId)
                 .FirstOrDefaultAsync();
         }
 

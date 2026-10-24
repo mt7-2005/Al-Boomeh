@@ -20,7 +20,7 @@ namespace Al_BoomehDAL.Classes
             _logger = logger;
             _context = context;
         }
-        public async Task<List<ExtraInfoDTO>> GetAllExtras(int pagenumber, int pagesize)
+        public async Task<List<ExtraInfoDTO>> GetAllExtras(int pageNumber, int pageSize)
         {
             var extraList = await _context.Extras
                                     .Select(e => new ExtraInfoDTO
@@ -32,8 +32,8 @@ namespace Al_BoomehDAL.Classes
                                         ProductId = e.ProductId,
                                         CreatedAt = e.CreatedAtUtc
                                     }).OrderBy(e => e.ExtraName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 

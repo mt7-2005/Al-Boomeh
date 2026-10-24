@@ -46,7 +46,7 @@ namespace Al_BoomehDAL.Classes
                 .AnyAsync(a => a.Id == id);
             return result;
         }
-        public async Task<List<StoreInfoDTO>?> GetAllStores(int pagenumber, int pagesize)
+        public async Task<List<StoreInfoDTO>?> GetAllStores(int pageNumber, int pageSize)
         {
             var storeList = await _context.Stores
                                     .Select(s => new StoreInfoDTO
@@ -61,15 +61,15 @@ namespace Al_BoomehDAL.Classes
                                         Tax=s.Tax,
                                         CreatedAt = s.CreatedAtUtc
                                     }).OrderBy(s => s.Name)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 
             return storeList;
         }
         
-        public async Task<List<StoreInfoDTO>?> GetStoresByStatus(StoreStatusEnum Status, int pagenumber, int pagesize)
+        public async Task<List<StoreInfoDTO>?> GetStoresByStatus(StoreStatusEnum Status, int pageNumber, int pageSize)
         {
             var storeList = await _context.Stores.AsNoTracking().Where(s => s.StoreStatus == (int)Status)
                                     .Select(s => new StoreInfoDTO
@@ -84,8 +84,8 @@ namespace Al_BoomehDAL.Classes
                                         Tax=s.Tax,
                                         CreatedAt = s.CreatedAtUtc
                                     }).OrderBy(s => s.Name)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .ToListAsync();
             return storeList;
         }
@@ -150,7 +150,7 @@ namespace Al_BoomehDAL.Classes
             return orderList;
         }
 
-        public async Task<List<StoreInfoDTO>?> GetStoresByArea(string area, int pagenumber, int pagesize)
+        public async Task<List<StoreInfoDTO>?> GetStoresByArea(string area, int pageNumber, int pageSize)
         {
             var storeList = await _context.Stores.Where(s => s.Area == area)
                                     .Select(s => new StoreInfoDTO
@@ -165,8 +165,8 @@ namespace Al_BoomehDAL.Classes
                                         Tax=s.Tax,
                                         CreatedAt = s.CreatedAtUtc
                                     }).OrderBy(s => s.Name)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
             return storeList;

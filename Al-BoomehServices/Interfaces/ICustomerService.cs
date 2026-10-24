@@ -12,7 +12,7 @@ namespace Al_BoomehServices.Interfaces
         Task<bool> IsExist(int id);
         Task<int> CreateCustomer(CreateCustomerDTO dto);
         Task<ResponseCustomerDTO?> GetCustomerById(int id);
-        Task<List<ResponseCustomerDTO>> GetAllCustomers(int pagenumber, int pagesize);
+        Task<List<ResponseCustomerDTO>> GetAllCustomers(int pageNumber, int pageSize);
         Task<List<OrderInfoDTO>?> GetCustomerOrders(int customerId, int pageNumber, int pageSize);
         Task<bool> UpdateCustomer(int id, UpdateCustomerDTO customerDTO);
         Task<bool> DeleteCustomer(int id);

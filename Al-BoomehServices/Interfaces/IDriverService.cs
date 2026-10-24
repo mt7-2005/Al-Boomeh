@@ -8,9 +8,9 @@ namespace Al_BoomehServices.Interfaces
 {
     public interface IDriverService
     {
-        Task<List<DriverInfoDTO>> GetAllDrivers(int pagenumber, int pagesize);
+        Task<List<DriverInfoDTO>> GetAllDrivers(int pageNumber, int pageSize);
         Task<bool> IsExist(int id);
-        Task<List<DriverInfoDTO>> GetDriversByVehicleType(enVehicleType VehicleType, int pagenumber, int pagesize);
+        Task<List<DriverInfoDTO>> GetDriversByVehicleType(enVehicleType VehicleType, int pageNumber, int pageSize);
         Task<DriverInfoDTO> GetDriverById(int driverId);
         Task<DriverInfoDTO> GetDriverByPhone(string phone);
         Task<int> CreateDriver(CreateDriverDTO driverDTO);

@@ -57,7 +57,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Analytics> Analytics { get; set; }
     public virtual DbSet<StoreIssue> StoreIssues { get; set; }
     public virtual DbSet<Voucher> Vouchers { get; set; }
-    public virtual DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public virtual DbSet<OutBoxMessage> OutboxMessages { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<ProcessedMessage> ProcessedMessages { get; set; }

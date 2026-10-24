@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehDAL.Models
 {
-    public class OutboxMessage : BaseEntity
+    public class OutBoxMessage : BaseEntity
     {
         public int Id { get; set; }
         public Guid MessageId { get; set; }

@@ -16,7 +16,7 @@ namespace Al_BoomehDAL.Classes
         {
             _context = context;
         }
-        public async Task<List<CategoryInfoDTO>> GetAllCategories(int pagenumber, int pagesize)
+        public async Task<List<CategoryInfoDTO>> GetAllCategories(int pageNumber, int pageSize)
         {
             var categoryList = await _context.Categories
                                     .Select(c => new CategoryInfoDTO
@@ -25,8 +25,8 @@ namespace Al_BoomehDAL.Classes
                                         CategoryName = c.CategoryName,
                                         CreatedAt = c.CreatedAtUtc
                                     }).OrderBy(c => c.CategoryName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 

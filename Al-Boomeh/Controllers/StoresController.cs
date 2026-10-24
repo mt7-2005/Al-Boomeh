@@ -20,7 +20,7 @@ namespace Al_Boomeh.Controllers
         private readonly IStoreService _store;
         private readonly IUserService _userService;
         private readonly IAnalyticsService _analyticsService;
-        public StoresController(IStoreService store, IUserService usersService,IAnalyticsService analyticsService)
+        public StoresController(IStoreService store, IUserService usersService, IAnalyticsService analyticsService)
         {
             _userService = usersService;
             _store = store;
@@ -28,12 +28,12 @@ namespace Al_Boomeh.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("All", Name = "GetAllStores")]
+        [HttpGet( Name = "GetAllStores")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
 
-        public async Task<ActionResult<List<StoreInfoDTO>>> GetAllStores([FromQuery] int pageNumber,[FromQuery] int pageSize)
+        public async Task<ActionResult<List<StoreInfoDTO>>> GetAllStores([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
@@ -43,11 +43,11 @@ namespace Al_Boomeh.Controllers
         }
 
         //owner
-        [HttpGet("{storeId}/get-store-orders", Name = "GetStoreOrders")]
+        [HttpGet("{storeId}/orders", Name = "GetStoreOrders")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<List<OrderInfoDTO>?>> GetStoreOrders(int storeId,[FromQuery] int pageNumber,[FromQuery] int pageSize,
+        public async Task<ActionResult<List<OrderInfoDTO>?>> GetStoreOrders(int storeId, [FromQuery] int pageNumber, [FromQuery] int pageSize,
              [FromServices] IAuthorizationService authorizationService)
         {
             if (pageNumber <= 0 || pageSize <= 0 || storeId <= 0) return BadRequest("Invalid Data");
@@ -75,7 +75,7 @@ namespace Al_Boomeh.Controllers
         {
             if (id <= 0) return BadRequest("Invalid Data");
 
-            
+
             var authResult = await authorizationService.AuthorizeAsync(
                 User,
                 id,
@@ -91,35 +91,35 @@ namespace Al_Boomeh.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet("{status}/get-by-status", Name = "GetStoresByStatus")]
+        [HttpGet("by-status", Name = "GetStoresByStatus")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<StoreInfoDTO>>> GetStoresByStatus(StoreStatusEnum status,[FromQuery] int pagenumber,[FromQuery] int pagesize)
+        public async Task<ActionResult<List<StoreInfoDTO>>> GetStoresByStatus([FromQuery] StoreStatusEnum status, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0) return BadRequest("Invalid Data");
 
-            var storesList = await _store.GetStoresByStatus(status, pagenumber, pagesize);
+            var storesList = await _store.GetStoresByStatus(status, pageNumber, pageSize);
             if (storesList == null || storesList.Count == 0) return NotFound("No stores found");
             return Ok(storesList);
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet("{area}/{pagenumber}/{pagesize}", Name = "GetStoresByArea")]
+        [HttpGet("by-area", Name = "GetStoresByArea")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<StoreInfoDTO>>> GetStoresByArea(string area, int pagenumber, int pagesize)
+        public async Task<ActionResult<List<StoreInfoDTO>>> GetStoresByArea([FromQuery] string area,[FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-            if (string.IsNullOrWhiteSpace(area) || pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (string.IsNullOrWhiteSpace(area) || pageNumber <= 0 || pageSize <= 0) return BadRequest("Invalid Data");
 
-            var storesList = await _store.GetStoresByArea(area, pagenumber, pagesize);
+            var storesList = await _store.GetStoresByArea(area, pageNumber, pageSize);
             if (storesList == null || storesList.Count == 0) return NotFound("No stores found");
             return Ok(storesList);
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet(Name = "GetStoreCountPairsStatus")]
+        [HttpGet("count-by-status",Name = "GetStoreCountPairsStatus")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<Dictionary<StoreStatusEnum, int>>> GetStoreCountPairsStatus()
         {
@@ -151,10 +151,10 @@ namespace Al_Boomeh.Controllers
         {
             if (id <= 0 || storeDTO == null) return BadRequest("Invalid Data");
 
-         
+
             if (!await _store.IsExist(id)) return NotFound($"No store with id {id}");
 
-            if (await _store.UpdateStore(id,storeDTO)) return Ok();
+            if (await _store.UpdateStore(id, storeDTO)) return Ok();
             return BadRequest("Failed to update store");
         }
         //owner
@@ -198,7 +198,7 @@ namespace Al_Boomeh.Controllers
             return BadRequest("Failed to delete store");
         }
 
-        
+
         [HttpGet("{id}/issues", Name = "GetStoreIssues")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -246,19 +246,19 @@ namespace Al_Boomeh.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPost("partner",Name ="CreatePartner")]
+        [HttpPost("partner", Name = "CreatePartner")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<Guid>> CreatePartner([FromBody] PartnerDto partner)
         {
             if (!await _store.IsExist(partner.StoreId)) return NotFound($"No store with id {partner.StoreId}");
 
-            var partnerId=await _userService.CreatePartner(partner);
+            var partnerId = await _userService.CreatePartner(partner);
 
             return Ok(partnerId);
         }
 
-        [HttpGet("analytics", Name = "GetAnalytics")]
+        [HttpGet("{Id}/analytics", Name = "GetAnalytics")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<AnalyticsDTO?>> GetAnalytics(int id, [FromServices] IAuthorizationService authorizationService)
         {
@@ -270,16 +270,16 @@ namespace Al_Boomeh.Controllers
             if (!authResult.Succeeded)
                 return Forbid();
 
-            var analytic=await _analyticsService.GetAnalytics(id);
+            var analytic = await _analyticsService.GetAnalytics(id);
             return Ok(analytic);
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet("get-all-analytics", Name = "GetAllAnalytics")]
+        [HttpGet("analytics", Name = "GetAllAnalytics")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<List<AnalyticsDTO>?>> GetAllAnalytics()
         {
-            var analyticsList=await _analyticsService.GetAllAnalytics();
+            var analyticsList = await _analyticsService.GetAllAnalytics();
             return Ok(analyticsList);
         }
     }
