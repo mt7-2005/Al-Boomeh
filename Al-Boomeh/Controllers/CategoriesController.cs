@@ -1,6 +1,7 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehServices;
 using Al_BoomehServices.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ namespace Al_Boomeh.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _category;
@@ -19,12 +21,12 @@ namespace Al_Boomeh.Controllers
             _category = category;
         }
 
-        [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllCategories")]
+        [HttpGet(Name = "GetAllCategories")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<CategoryInfoDTO>>> GetAllCategories(int pageNumber, int pageSize)
+        public async Task<ActionResult<List<CategoryInfoDTO>>> GetAllCategories([FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-            if (pageNumber <= 0 || pageSize <= 0|| pageSize>1000) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0 || pageSize > 1000) return BadRequest("Invalid Data");
 
             var categoriesList = await _category.GetAllCategories(pageNumber, pageSize);
             if (categoriesList == null || categoriesList.Count == 0) return NotFound("No Categories Found");
@@ -43,9 +45,9 @@ namespace Al_Boomeh.Controllers
             if (category == null) return NotFound($"No category with id {id}");
 
             return Ok(category);
-            
-        }
 
+        }
+        [Authorize(Roles = "Admin")]
         [HttpPost(Name = "AddCategory")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -58,22 +60,22 @@ namespace Al_Boomeh.Controllers
 
             return CreatedAtAction(nameof(GetCategoryById), new { id = categoryDTO }, categoryDTO);
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}", Name = "UpdateCategory")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateCategory( int id, [FromBody] UpdateCategoryDTO categoryDTO)
+        public async Task<ActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDTO categoryDTO)
         {
             if (id <= 0 || categoryDTO == null) return BadRequest("Invalid Data");
 
-            
+
             if (!await _category.IsExist(id)) return NotFound($"No category with id {id}");
 
-            if (await _category.UpdateCategory(id,categoryDTO)) return Ok("Updated");
+            if (await _category.UpdateCategory(id, categoryDTO)) return Ok("Updated");
             return BadRequest("Failed to update category");
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}", Name = "DeleteCategory")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

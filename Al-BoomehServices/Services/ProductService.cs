@@ -30,7 +30,7 @@ namespace Al_BoomehDAL.Classes
                 .AnyAsync(a => a.Id == id);
             return result;
         }
-        public async Task<List<ProductInfoDTO>?> GetProductsByStore(int storeId, int pagenumber, int pagesize)
+        public async Task<List<ProductInfoDTO>?> GetProductsByStore(int storeId, int pageNumber, int pageSize)
         {
             var productList = await _context.Products.Where(s => s.StoreId == storeId)
                                     .Select(p => new ProductInfoDTO
@@ -56,13 +56,13 @@ namespace Al_BoomehDAL.Classes
                                             IsMandatory = e.IsMandatory,
                                         }).ToList()
                                     }).OrderBy(p => p.ProductName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
             return productList;
         }
-        public async Task<List<ProductInfoDTO>?> GetProductsByCategory(int categoryId, int pagenumber, int pagesize)
+        public async Task<List<ProductInfoDTO>?> GetProductsByCategory(int categoryId, int pageNumber, int pageSize)
         {
             var productList = await _context.Products.Where(s => s.CategoryId == categoryId)
                                     .Select(p => new ProductInfoDTO
@@ -88,13 +88,13 @@ namespace Al_BoomehDAL.Classes
                                             IsMandatory = e.IsMandatory,
                                         }).ToList()
                                     }).OrderBy(p => p.ProductName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
             return productList;
         }
-        public async Task<List<ProductInfoDTO>?> GetOutOfStockProducts(int pagenumber, int pagesize , int storeId)
+        public async Task<List<ProductInfoDTO>?> GetOutOfStockProducts(int pageNumber, int pageSize , int storeId)
         {
             var productList = await _context.Products.Where(s => s.IsOutOfStock == true && s.StoreId==storeId)
                                     .Select(p => new ProductInfoDTO
@@ -120,8 +120,8 @@ namespace Al_BoomehDAL.Classes
                                             IsMandatory = e.IsMandatory,
                                         }).ToList()
                                     }).OrderBy(p => p.ProductName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
             return productList;

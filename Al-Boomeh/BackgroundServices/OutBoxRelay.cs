@@ -15,9 +15,9 @@ namespace Al_BoomehAPI.BackgroundServices
 {
     public class OutBoxRelay : BackgroundService
     {
-        private readonly ILogger<IOutBoxMessageService> _logger;
+        private readonly ILogger<OutBoxRelay> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        public OutBoxRelay(ILogger<IOutBoxMessageService> logger, IServiceScopeFactory scopeFactory)
+        public OutBoxRelay(ILogger<OutBoxRelay> logger, IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
@@ -34,12 +34,14 @@ namespace Al_BoomehAPI.BackgroundServices
                         var outBoxService = scope.ServiceProvider.GetRequiredService<IOutBoxMessageService>();
                         var publisher = scope.ServiceProvider.GetRequiredService<IOrderPlaced>();
                         var messages = await outBoxService.GetUnSentMessages();
-                        if (messages == null) continue;
 
 
-                        foreach (var message in messages)
+                        foreach (var message in messages!)
                         {
                             await publisher.Publish(message);
+
+                            // Test C — the relay dies halfway
+                            //throw new Exception("message for test c");
 
                             await outBoxService.MarkMessageAsSent(message.Id);
 
@@ -49,10 +51,10 @@ namespace Al_BoomehAPI.BackgroundServices
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning("Error publish " + ex.Message);
+                    _logger.LogError(ex, "The outbox relay failed to send a batch.");
                 }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(500), stoppingToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(5000), stoppingToken);
             }
         }
     }

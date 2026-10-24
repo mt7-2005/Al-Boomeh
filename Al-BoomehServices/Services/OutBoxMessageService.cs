@@ -14,9 +14,9 @@ namespace Al_BoomehServices.Services
     public class OutBoxMessageService:IOutBoxMessageService
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<OutboxMessage> _logger;
+        private readonly ILogger<OutBoxMessageService> _logger;
 
-        public OutBoxMessageService(AppDbContext context, ILogger<OutboxMessage> logger)
+        public OutBoxMessageService(AppDbContext context, ILogger<OutBoxMessageService> logger)
         {
             _context = context;
             _logger = logger;
@@ -33,7 +33,7 @@ namespace Al_BoomehServices.Services
                     Body=m.Payload,
                     Event=m.EventName
                 })
-                .OrderByDescending(o=>o.Id)
+                .OrderBy(o=>o.Id)
                 .Take(50)
                 .ToListAsync();
 

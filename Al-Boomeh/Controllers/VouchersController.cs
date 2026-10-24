@@ -1,15 +1,17 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
 
 
 namespace Al_Boomeh.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class VouchersController : ControllerBase
     {
         private readonly IVoucherService _voucher;
@@ -31,7 +33,7 @@ namespace Al_Boomeh.Controllers
             if (voucher == null) return NotFound($"No voucher with code {code}");
             return Ok(voucher);
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPost(Name = "AddVoucher")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -44,7 +46,7 @@ namespace Al_Boomeh.Controllers
 
             return CreatedAtAction(nameof(GetVoucherByCode), new { code = voucherDTO.Code }, new { id = newId });
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPut("{code}/use", Name = "UseVoucher")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

@@ -107,7 +107,7 @@ namespace Al_Boomeh.Controllers
         }
 
         [EnableRateLimiting("AuthLimiter")]
-        [HttpPost("RequestOtp")]
+        [HttpPost("request-otp")]
         public async Task<IActionResult> RequestOtp([FromQuery] string phone)
         {
             if (string.IsNullOrEmpty(phone)||phone.Length<10||!phone.All(char.IsDigit)) return BadRequest("Invalid input");
@@ -118,7 +118,7 @@ namespace Al_Boomeh.Controllers
         }
 
         [EnableRateLimiting("AuthLimiter")]
-        [HttpPut("Verify")]
+        [HttpPut("verify")]
         public async Task<IActionResult> Verify(string phone, string code)
         {
             if (string.IsNullOrEmpty(phone) || phone.Length < 10 || !phone.All(char.IsDigit)) return BadRequest("Invalid input");

@@ -255,7 +255,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 var recurringJobs = app.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobs.RemoveIfExists("cancel-abandoned-orders");
+recurringJobs.RemoveIfExists("decline-abandoned-orders");
 recurringJobs.AddOrUpdate<IDeclineAbandonedOrders>( "decline-abandoned-orders", x => x.DeclineAbandonedOrders(),"*/5 * * * *");
 
 app.Services.GetRequiredService<IRecurringJobManager>()

@@ -9,10 +9,10 @@ namespace Al_BoomehServices.Interfaces
     public interface IStoreService
     {
         Task<bool> IsExist(int id);
-        Task<List<StoreInfoDTO>?> GetAllStores(int pagenumber, int pagesize);
-        Task<List<StoreInfoDTO>?> GetStoresByStatus(StoreStatusEnum Status, int pagenumber, int pagesize);
+        Task<List<StoreInfoDTO>?> GetAllStores(int pageNumber, int pageSize);
+        Task<List<StoreInfoDTO>?> GetStoresByStatus(StoreStatusEnum Status, int pageNumber, int pageSize);
         Task<List<OrderInfoDTO>?> GetStoreOrders(int storeId, int pageNumber, int pageSize);
-        Task<List<StoreInfoDTO>?> GetStoresByArea(string area, int pagenumber, int pagesize);
+        Task<List<StoreInfoDTO>?> GetStoresByArea(string area, int pageNumber, int pageSize);
         Task<StoreInfoDTO?> GetStoreById(int storeId);
         Task<List<StoreIssueDTO>?> GetStoreIssue(int storeid);
         Task<int> CreateStore(CreateStoreDTO storeDTO);

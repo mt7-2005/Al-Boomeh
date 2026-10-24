@@ -2,15 +2,18 @@
 
 ## 1. URL Conventions
 
-- Use plural resource names for collections.
-  - `GET /api/Stores`
-  - `GET /api/Orders`
-
-- Use resource IDs when targeting a specific resource.
-  - `GET /api/Orders/{id}`
 
 - Use query parameters for filtering, pagination, and sorting.
   - `GET /api/Stores/All?pageNumber=1&pageSize=10`
+- A list uses the plural name, with paging in the query: `GET /api/Stores?pageNumber=1&pageSize=10`. Not All, and no paging in the path.
+- One item uses its id in the path: `GET /api/Stores/{id}.` Another unique key uses the key's name first: GET /api/Orders/code/{code}.
+- An item's own data goes under its id: `GET /api/Stores/{id}/analytics`, `POST /api/Orders/{id}/lines.`
+- A filter goes in the query. A filtered list may have its own word in the path: `GET /api/Stores/by-status?status=1&pageNumber=1&pageSize=10.`
+- No verbs in the path. The HTTP method is the verb. Only actions that are not create, read, update or delete may use one: login, refresh, logout-staff, request-otp, verify, `{code}/use.`
+
+
+
+
 
 ## 2. HTTP Method Conventions
 
@@ -25,7 +28,7 @@ Examples:
 
 - `GET /api/Orders/{id}` — retrieve an order
 - `POST /api/Orders` — create an order
-- `PUT /api/Orders?id={id}` — update/place an existing order (must return `201`)
+- `PUT /api/Orders/{id}` — update/place an existing order (must return `201`)
 - `DELETE /api/Orders/{id}` — delete an order
 
 ## 3. Status-Code Conventions
@@ -110,7 +113,7 @@ List endpoints accept these query parameters:
 | `pageNumber` | int | Yes | `>= 1` | Page number, starting at 1 |
 | `pageSize` | int | Yes | `1` to `50` | Number of items per page |
 
-Example: `GET /api/Stores/All?pageNumber=1&pageSize=10`
+Example: `GET /api/Stores?pageNumber=1&pageSize=10`
 
 - Parameter names are camelCase and identical on every list endpoint. (ASP.NET Core binds query names case-insensitively, but clients should use the names above.)
 - A missing parameter is treated as `0` and is rejected.

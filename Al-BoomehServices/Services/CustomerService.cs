@@ -75,7 +75,7 @@ namespace Al_BoomehDAL.Classes
 
             return customer;
         }
-        public async Task<List<ResponseCustomerDTO>> GetAllCustomers(int pagenumber,int pagesize)
+        public async Task<List<ResponseCustomerDTO>> GetAllCustomers(int pageNumber,int pageSize)
         {
             var customers = await _context.Customers
                 .Select(c => new ResponseCustomerDTO
@@ -90,8 +90,8 @@ namespace Al_BoomehDAL.Classes
                     DateOfBirth = c.DateOfBirth.ToDateTime(TimeOnly.MinValue),
                     Gender = (enGender)c.Gender
                 }).OrderBy(i=> i.id)
-                .Skip((pagenumber - 1) * pagesize)
-                .Take(pagesize)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             return customers;
