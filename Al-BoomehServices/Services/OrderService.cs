@@ -41,6 +41,8 @@ namespace Al_BoomehDAL.Classes
     }
     public class OrderService : IOrderService,IDeclineAbandonedOrders
     {
+        private static bool _crashedOnce = false;
+
         private readonly AppDbContext _context;
         private readonly ILogger<OrderService> _logger;
         private readonly IAuditScope _auditScope;
@@ -511,6 +513,9 @@ namespace Al_BoomehDAL.Classes
 
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
+                    //Environment.Exit(1);
+
                     if (roweffected > 0)
                     {
                         
@@ -962,10 +967,10 @@ namespace Al_BoomehDAL.Classes
 
         public async Task DeclineAbandonedOrders()
         {
-
             var failures = new List<Exception>();
 
             int lastId = 0;
+           
 
             while (true)
             {
@@ -978,7 +983,6 @@ namespace Al_BoomehDAL.Classes
                     .Select(o => o.Id)
                     .Take(100)
                     .ToListAsync();
-
 
                 if (orderIds.Count == 0) break;
 
@@ -1024,7 +1028,8 @@ namespace Al_BoomehDAL.Classes
                                         .SetProperty(p => p.IsOutOfStock, p => false));
                             }
                         }
-
+                       
+                       
                         order.Status = (int)enStatus.Decline;
 
                         using (_auditScope.Enable())
