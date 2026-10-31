@@ -86,7 +86,7 @@ namespace Al_BoomehAPI.Controllers
             var authResult = await authorizationService.AuthorizeAsync(User, ownerId.Value, "CustomerOwnerOrAdmin");
             if (!authResult.Succeeded) return Forbid();
 
-            addressDto.customerId = id;
+            addressDto.id = id;
 
 
             bool updated = await _addressService.UpdateAddress(addressDto);

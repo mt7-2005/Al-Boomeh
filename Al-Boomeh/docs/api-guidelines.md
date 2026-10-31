@@ -4,12 +4,13 @@
 
 
 - Use query parameters for filtering, pagination, and sorting.
-  - `GET /api/Stores/All?pageNumber=1&pageSize=10`
+  - `GET /api/Stores?pageNumber=1&pageSize=10`
 - A list uses the plural name, with paging in the query: `GET /api/Stores?pageNumber=1&pageSize=10`. Not All, and no paging in the path.
 - One item uses its id in the path: `GET /api/Stores/{id}.` Another unique key uses the key's name first: GET /api/Orders/code/{code}.
 - An item's own data goes under its id: `GET /api/Stores/{id}/analytics`, `POST /api/Orders/{id}/lines.`
 - A filter goes in the query. A filtered list may have its own word in the path: `GET /api/Stores/by-status?status=1&pageNumber=1&pageSize=10.`
 - No verbs in the path. The HTTP method is the verb. Only actions that are not create, read, update or delete may use one: login, refresh, logout-staff, request-otp, verify, `{code}/use.`
+- Use lowercase words, with `-` between them (for example `count-by-status`, `request-otp`).
 
 
 
