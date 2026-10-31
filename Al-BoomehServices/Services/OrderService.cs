@@ -41,8 +41,6 @@ namespace Al_BoomehDAL.Classes
     }
     public class OrderService : IOrderService,IDeclineAbandonedOrders
     {
-        private static bool _crashedOnce = false;
-
         private readonly AppDbContext _context;
         private readonly ILogger<OrderService> _logger;
         private readonly IAuditScope _auditScope;
