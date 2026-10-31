@@ -309,3 +309,12 @@ My own database (column already exists): every check finds the work already done
 A new empty database (column missing): dotnet ef database update adds the column, fills the keys, makes it required, and creates the unique index. Then the reseed finishes and the order endpoints return orders instead of a 500.
 
 
+## Part-4
+|**After Retry**|**After Crash**|**Stock Before**|**Product**|
+|-|-|-|-|
+|22|17|12|1|
+|7|2|2|2|
+
+**Order 30056 with productId =1 and quantity =5 / Order 30057 with productId =2 and quantity=5**
+
+
