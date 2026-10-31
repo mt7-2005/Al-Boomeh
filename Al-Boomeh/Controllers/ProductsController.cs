@@ -27,7 +27,7 @@ namespace Al_Boomeh.Controllers
         
 
         [AllowAnonymous]
-        [HttpGet("{id}/product", Name = "GetProductById")]
+        [HttpGet("{id}", Name = "GetProductById")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -41,11 +41,11 @@ namespace Al_Boomeh.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("store/{storeId}", Name = "GetProductsByStore")]
+        [HttpGet("by-store", Name = "GetProductsByStore")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByStore(int storeId,[FromQuery] int pageNumber,[FromQuery] int pageSize)
+        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByStore([FromQuery] int storeId,[FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
             if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
@@ -55,28 +55,28 @@ namespace Al_Boomeh.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("{categoryId}", Name = "GetProductsByCategory")]
+        [HttpGet("by-category", Name = "GetProductsByCategory")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByCategory(int categoryId,[FromQuery] int pagenumber,[FromQuery] int pagesize)
+        public async Task<ActionResult<List<ProductInfoDTO>>> GetProductsByCategory( [FromQuery] int categoryId,[FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
-            if (categoryId <= 0 || pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (categoryId <= 0 || pageNumber <= 0 || pageSize <= 0) return BadRequest("Invalid Data");
 
-            var productsList = await _product.GetProductsByCategory(categoryId, pagenumber, pagesize);
+            var productsList = await _product.GetProductsByCategory(categoryId, pageNumber, pageSize);
             if (productsList == null || productsList.Count == 0) return NotFound("No products found");
             return Ok(productsList);
         }
 
         //owner
-        [HttpGet("out-of-stock/{storeid}", Name = "GetOutOfStockProducts")]
+        [HttpGet("out-of-stock", Name = "GetOutOfStockProducts")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<ProductInfoDTO>>> GetOutOfStockProducts( [FromQuery] int pagenumber,[FromQuery] int pagesize,int storeid
+        public async Task<ActionResult<List<ProductInfoDTO>>> GetOutOfStockProducts([FromQuery] int storeid, [FromQuery] int pageNumber,[FromQuery] int pageSize
             , [FromServices] IAuthorizationService authorizationService)
         {
-            if (pagenumber <= 0 || pagesize <= 0) return BadRequest("Invalid Data");
+            if (pageNumber <= 0 || pageSize <= 0) return BadRequest("Invalid Data");
 
 
             var authResult = await authorizationService.AuthorizeAsync(
@@ -87,7 +87,7 @@ namespace Al_Boomeh.Controllers
 
             if (!authResult.Succeeded)
                 return Forbid();
-            var productsList = await _product.GetOutOfStockProducts(pagenumber, pagesize, storeid);
+            var productsList = await _product.GetOutOfStockProducts(pageNumber, pageSize, storeid);
 
 
             if (productsList == null || productsList.Count == 0) return NotFound("No out-of-stock products found");
@@ -96,10 +96,10 @@ namespace Al_Boomeh.Controllers
 
         
         //onwer
-        [HttpGet("{storeId}/top-product", Name = "TopProductPairsMonthForStore")]
+        [HttpGet("top", Name = "TopProductPairsMonthForStore")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<Dictionary<int, float>>> TopProductPairsMonthForStore(int storeId, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult<Dictionary<int, float>>> TopProductPairsMonthForStore([FromQuery] int storeId, [FromServices] IAuthorizationService authorizationService)
         {
             if (storeId <= 0) return BadRequest("Invalid Data");
 

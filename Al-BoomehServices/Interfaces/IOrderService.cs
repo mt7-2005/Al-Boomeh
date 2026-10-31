@@ -9,7 +9,7 @@ namespace Al_BoomehServices.Interfaces
 {
     public interface IOrderService
     {
-        Task<List<OrderInfoDTO>> GetAllOrders(int pagenumber, int pagesize);
+        Task<List<OrderInfoDTO>> GetAllOrders(int pageNumber, int pageSize);
         Task<long> GetOrdersByStatus(enStatus Status,int storeId);
         Task<OrderInfoDTO> GetOrderById(int orderId);
         Task<OrderInfoDTO> GetOrderByCode(string orderCode);
@@ -36,6 +36,6 @@ namespace Al_BoomehServices.Interfaces
         Task<bool> IsExist(int id);
         Task<string?> GetCustomerEmail(int orderId);
 
-
+        Task<int?> GetCartLineOwnerId(int lineId);
     }
 }

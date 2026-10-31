@@ -133,7 +133,11 @@ Yes, there is no problem if the customer has to wait to receive the OTP because 
 
 ### Question 2:
 
-The code has been modified so that when a customer requests the OTP twice, the system checks the status of the previous OTP. If the previous OTP is still active, the job is terminated by using `return`, so Hangfire does not retry the job again.
+- Case 1:
+If the job fails after the message has been sent, it is not sent again because it has already been saved. And if the job fails in general, the message is marked as expired.
+- Case 2:
+On retry, the message never sent at all because a record of it already exists in the database, so the function returns early.
+Customer gets: no text. And "send again" does not help until the code expires, 5 minutes later.
 
 
 ---
@@ -316,5 +320,4 @@ A new empty database (column missing): dotnet ef database update adds the column
 |7|2|2|2|
 
 **Order 30056 with productId =1 and quantity =5 / Order 30057 with productId =2 and quantity=5**
-
 

@@ -21,14 +21,14 @@ Content-Type: application/json
 ### 2. Get Stores
 ### ========================================
 
-GET {{baseUrl}}/api/Stores/All?pagenumber=5&pagesize=10
+GET {{baseUrl}}/api/Stores?pageNumber=5&pageSize=10
 Authorization: Bearer {{adminToken}}
 
 ### ========================================
 ### 3. Request Customer OTP
 ### ========================================
 
-POST {{baseUrl}}/api/Auth/RequestOtp?phone=0791482276
+POST {{baseUrl}}/api/Auth/request-otp?phone=0791482276
 
 ### ========================================
 ### 4. Verify Customer OTP
@@ -37,7 +37,7 @@ POST {{baseUrl}}/api/Auth/RequestOtp?phone=0791482276
 # Get the OTP from the API logs and replace the value below.
 
 # @name customerVerify
-POST {{baseUrl}}/api/Auth/Verify?phone=0791482276&code=362270
+PUT {{baseUrl}}/api/Auth/verify?phone=0791482276&code=362270
 
 ###
 
@@ -77,7 +77,7 @@ Content-Type: application/json
 
 # Expect: 200
 
-PUT {{baseUrl}}/api/Orders?id={{orderId}}
+PUT {{baseUrl}}/api/Orders/{{orderId}}
 Authorization: Bearer {{customerToken}}
 Content-Type: application/json
 
@@ -104,7 +104,7 @@ POST {{baseUrl}}/api/Auth/login
 Content-Type: application/json
 
 {
-  "email": "partner@al-boomeh.com",
+  "email": "abernathy inc@al-boomeh.com",
   "password": "123456"
 }
 
@@ -118,7 +118,7 @@ Content-Type: application/json
 
 # Expect: 200
 
-PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+PUT {{baseUrl}}/api/Orders/{{orderId}}/status
 Authorization: Bearer {{partnerToken}}
 Content-Type: application/json
 
@@ -133,7 +133,7 @@ Content-Type: application/json
 
 # Expect: 200
 
-PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+PUT {{baseUrl}}/api/Orders/{{orderId}}/status
 Authorization: Bearer {{partnerToken}}
 Content-Type: application/json
 
@@ -148,7 +148,7 @@ Content-Type: application/json
 
 # Expect: 200
 
-PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+PUT {{baseUrl}}/api/Orders/{{orderId}}/status
 Authorization: Bearer {{partnerToken}}
 Content-Type: application/json
 
@@ -163,7 +163,7 @@ Content-Type: application/json
 
 # Expect: 200
 
-PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+PUT {{baseUrl}}/api/Orders/{{orderId}}/status
 Authorization: Bearer {{partnerToken}}
 Content-Type: application/json
 
@@ -196,7 +196,7 @@ Authorization: Bearer {{partnerToken}}
 
 ### S1. Customer tries to change order status. Expect: 403
 
-PUT {{baseUrl}}/api/Orders/{{orderId}}/updatestatus
+PUT {{baseUrl}}/api/Orders/{{orderId}}/status
 Authorization: Bearer {{customerToken}}
 Content-Type: application/json
 

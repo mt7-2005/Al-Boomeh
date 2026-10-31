@@ -18,17 +18,17 @@ namespace Al_BoomehAPI.Controllers
         private readonly IUserService _usersService;
         public AddressesController(IAddressService address, IUserService usersService)
         {
-            _usersService=usersService;
+            _usersService = usersService;
             _addressService = address;
         }
 
-        [HttpGet("{id}",Name = "GetAddress")]
+        [HttpGet("{id}", Name = "GetAddress")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetAddress(int id, [FromServices] IAuthorizationService authorizationService)
         {
             var address = await _addressService.GetAddress(id);
-           
+
             var authResult = await authorizationService.AuthorizeAsync(
                User,
                address.customerId,
@@ -47,10 +47,10 @@ namespace Al_BoomehAPI.Controllers
         [HttpPost(Name = "AddAddress")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        
+
         public async Task<ActionResult> AddAddress([FromBody] AddressDTO addressDto, [FromServices] IAuthorizationService authorizationService)
         {
-            if (addressDto == null||string.IsNullOrEmpty(addressDto.AddressName)||string.IsNullOrEmpty(addressDto.Phone)||string.IsNullOrEmpty(addressDto.Latitude)||string.IsNullOrEmpty(addressDto.Longitude))
+            if (addressDto == null || string.IsNullOrEmpty(addressDto.AddressName) || string.IsNullOrEmpty(addressDto.Phone) || string.IsNullOrEmpty(addressDto.Latitude) || string.IsNullOrEmpty(addressDto.Longitude))
                 return BadRequest(new { message = "Address data is required" });
 
 
@@ -71,28 +71,23 @@ namespace Al_BoomehAPI.Controllers
         }
 
         //owner
-        [HttpPut(Name = "UpdateAddress")]
+        [HttpPut("{id}",Name = "UpdateAddress")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public async Task<ActionResult> UpdateAddress( [FromBody] AddressDTO addressDto,[FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> UpdateAddress(int id,[FromBody] AddressDTO addressDto, [FromServices] IAuthorizationService authorizationService)
         {
             if (addressDto == null || string.IsNullOrEmpty(addressDto.AddressName) || string.IsNullOrEmpty(addressDto.Phone) || string.IsNullOrEmpty(addressDto.Latitude) || string.IsNullOrEmpty(addressDto.Longitude))
                 return BadRequest(new { message = "Address data is required" });
 
-            if (!await _addressService.IsExist(addressDto.id))
-                return NotFound(new { message = "Address not found" });
+            int? ownerId = await _addressService.GetOwnerId(id);
+            if (ownerId == null) return NotFound(new { message = "Address not found" });
 
+            var authResult = await authorizationService.AuthorizeAsync(User, ownerId.Value, "CustomerOwnerOrAdmin");
+            if (!authResult.Succeeded) return Forbid();
 
+            addressDto.id = id;
 
-            var authResult = await authorizationService.AuthorizeAsync(
-                User,
-                addressDto.customerId,
-                "CustomerOwnerOrAdmin");
-
-
-            if (!authResult.Succeeded)
-                return Forbid();
 
             bool updated = await _addressService.UpdateAddress(addressDto);
             if (!updated)
@@ -102,27 +97,22 @@ namespace Al_BoomehAPI.Controllers
         }
 
         //owner
-        [HttpDelete("{id}",Name = "DeleteAddress")]
+        [HttpDelete("{id}", Name = "DeleteAddress")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status200OK)]
 
-        public async Task<ActionResult> DeleteAddress(int id,int customerId, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> DeleteAddress(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0)
             {
                 return BadRequest("Invalid Input ");
             }
-            if (!await _addressService.IsExist(id))
-                return NotFound(new { message = "Address not found" });
+            int? ownerId = await _addressService.GetOwnerId(id);
+            if (ownerId == null) return NotFound(new { message = "Address not found" });
 
-
-
-            var authResult = await authorizationService.AuthorizeAsync(
-                User,
-                customerId,
-                "CustomerOwnerOrAdmin");
-
+            var authResult = await authorizationService.AuthorizeAsync(User, ownerId.Value, "CustomerOwnerOrAdmin");
+            if (!authResult.Succeeded) return Forbid();
 
             bool deleted = await _addressService.DeleteAddress(id);
             if (!deleted)

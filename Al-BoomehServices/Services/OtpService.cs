@@ -35,7 +35,7 @@ namespace Al_BoomehServices.Services
         public async Task Request(string phone)
         {
             var otp=await _context.OtpCodes
-                .Where(x => x.Phone == phone&&!x.IsUsed&&x.ExpiresAt>DateTime.UtcNow)
+                .Where(x => x.Phone == phone&& !x.IsUsed &&x.ExpiresAt>DateTime.UtcNow)
                 .FirstOrDefaultAsync();
 
             if (otp != null)
@@ -65,11 +65,7 @@ namespace Al_BoomehServices.Services
                 throw;
             }
 
-            int row = await _context.SaveChangesAsync();
-                if (row > 0)
-                {
-                    await _smsSender.SendAsync(phone, $"The OTP :{newOtp.Code}");
-                }
+           
             
         }
         public async Task<OtpVerifyResult> Verify(string phone, string code)

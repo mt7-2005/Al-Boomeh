@@ -1,15 +1,18 @@
 ﻿using Al_BoomehDAL.Classes;
 using Al_BoomehServices;
+using Al_BoomehServices.Interfaces;
+using Bogus.DataSets;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
 
 
 namespace Al_Boomeh.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class DriversController : ControllerBase
     {
         private readonly IDriverService _driver;
@@ -19,10 +22,10 @@ namespace Al_Boomeh.Controllers
             _driver = driver;
         }
 
-        [HttpGet("{pagenumber}/{pagesize}", Name = "GetAllDrivers")]
+        [HttpGet(Name = "GetAllDrivers")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<DriverInfoDTO>>> GetAllDrivers(int pageNumber, int pageSize)
+        public async Task<ActionResult<List<DriverInfoDTO>>> GetAllDrivers([FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
             if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
@@ -31,7 +34,7 @@ namespace Al_Boomeh.Controllers
             return Ok(driversList);
         }
 
-        [HttpGet("{id}/driver", Name = "GetDriverById")]
+        [HttpGet("{id}", Name = "GetDriverById")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -44,7 +47,7 @@ namespace Al_Boomeh.Controllers
             return Ok(driver);
         }
 
-        [HttpGet("{phone}", Name = "GetDriverByPhone")]
+        [HttpGet("phone/{phone}", Name = "GetDriverByPhone")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -57,10 +60,10 @@ namespace Al_Boomeh.Controllers
             return Ok(driver);
         }
 
-        [HttpGet("{vehicleType}/{pagenumber}/{pagesize}", Name = "GetDriversByVehicleType")]
+        [HttpGet("by-vehicle-type", Name = "GetDriversByVehicleType")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<List<DriverInfoDTO>>> GetDriversByVehicleType(enVehicleType vehicleType, int pageNumber, int pageSize)
+        public async Task<ActionResult<List<DriverInfoDTO>>> GetDriversByVehicleType([FromQuery] enVehicleType vehicleType,[FromQuery] int pageNumber,[FromQuery] int pageSize)
         {
             if (pageNumber <= 0 || pageSize <= 0 || pageSize > 50) return BadRequest("Invalid Data");
 
@@ -69,7 +72,7 @@ namespace Al_Boomeh.Controllers
             return Ok(driversList);
         }
 
-        [HttpGet( Name = "GetDriverCountPairsVehicleType")]
+        [HttpGet("count-by-vehicle-type", Name = "GetDriverCountPairsVehicleType")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<Dictionary<enVehicleType, int>>> GetDriverCountPairsVehicleType()
         {
@@ -95,7 +98,7 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateDriver([FromQuery] int id, [FromBody] UpdateDriverInfoDTO driverDTO)
+        public async Task<ActionResult> UpdateDriver(int id, [FromBody] UpdateDriverInfoDTO driverDTO)
         {
             if (id <= 0 || driverDTO == null) return BadRequest("Invalid Data");
 
@@ -141,7 +144,7 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> AddIssueToDriver([FromQuery] int id, [FromBody] DriverIssueDTO issueDTO)
+        public async Task<ActionResult> AddIssueToDriver( int id, [FromBody] DriverIssueDTO issueDTO)
         {
             if (id <= 0 || issueDTO == null) return BadRequest("Invalid Data");
 

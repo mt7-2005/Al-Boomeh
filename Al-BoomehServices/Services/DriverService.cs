@@ -26,7 +26,7 @@ namespace Al_BoomehDAL.Classes
             _logger = logger;
             _context = context;
         }
-        public async Task<List<DriverInfoDTO>> GetAllDrivers(int pagenumber, int pagesize)
+        public async Task<List<DriverInfoDTO>> GetAllDrivers(int pageNumber, int pageSize)
         {
             var driverList = await _context.Drivers
                                     .Select(d => new DriverInfoDTO
@@ -39,8 +39,8 @@ namespace Al_BoomehDAL.Classes
                                         VehicleType = (enVehicleType)d.VehicleType,
                                         CreatedAt = d.CreatedAtUtc
                                     }).OrderBy(d => d.FirstName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 
@@ -52,7 +52,7 @@ namespace Al_BoomehDAL.Classes
                 .AnyAsync(a => a.Id == id);
             return result;
         }
-        public async Task<List<DriverInfoDTO>> GetDriversByVehicleType(enVehicleType VehicleType, int pagenumber, int pagesize)
+        public async Task<List<DriverInfoDTO>> GetDriversByVehicleType(enVehicleType VehicleType, int pageNumber, int pageSize)
         {
             var driverList = await _context.Drivers.Where(d => d.VehicleType == (int)VehicleType)
                                     .Select(d => new DriverInfoDTO
@@ -65,8 +65,8 @@ namespace Al_BoomehDAL.Classes
                                         VehicleType = (enVehicleType)d.VehicleType,
                                         CreatedAt = d.CreatedAtUtc
                                     }).OrderBy(d => d.FirstName)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
             return driverList;

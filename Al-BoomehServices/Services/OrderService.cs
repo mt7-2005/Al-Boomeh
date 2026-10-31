@@ -107,7 +107,7 @@ namespace Al_BoomehDAL.Classes
 
             return code;
         }
-        public async Task<List<OrderInfoDTO>> GetAllOrders(int pagenumber, int pagesize)
+        public async Task<List<OrderInfoDTO>> GetAllOrders(int pageNumber, int pageSize)
         {
             var orderList = await _context.Orders
                                     .Select(o => new OrderInfoDTO
@@ -158,8 +158,8 @@ namespace Al_BoomehDAL.Classes
                                             NewStatus = (enStatus)s.NewStatus,
                                         }).ToList()
                                     }).OrderBy(o => o.OrderCode)
-                                    .Skip((pagenumber - 1) * pagesize)
-                                    .Take(pagesize)
+                                    .Skip((pageNumber - 1) * pageSize)
+                                    .Take(pageSize)
                                     .AsNoTracking()
                                     .ToListAsync();
 
@@ -497,7 +497,7 @@ namespace Al_BoomehDAL.Classes
                         CreatedAtUtc = DateTime.UtcNow,
                     };
 
-                    var outboxMessage = new OutboxMessage
+                    var outboxMessage = new OutBoxMessage
                     {
                         Version = 1,
                         MessageId = Guid.NewGuid(),
@@ -511,10 +511,13 @@ namespace Al_BoomehDAL.Classes
 
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
+                    //Environment.Exit(1);
+
                     if (roweffected > 0)
                     {
                         
-                        _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:0}",
+                        _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:O}",
                             order.OrderCode,DateTime.UtcNow);
 
                     }
@@ -962,10 +965,10 @@ namespace Al_BoomehDAL.Classes
 
         public async Task DeclineAbandonedOrders()
         {
-
             var failures = new List<Exception>();
 
             int lastId = 0;
+           
 
             while (true)
             {
@@ -1023,7 +1026,8 @@ namespace Al_BoomehDAL.Classes
                                         .SetProperty(p => p.IsOutOfStock, p => false));
                             }
                         }
-
+                       
+                       
                         order.Status = (int)enStatus.Decline;
 
                         using (_auditScope.Enable())
@@ -1045,6 +1049,8 @@ namespace Al_BoomehDAL.Classes
                     }
 
                 }
+                lastId = orderIds[^1];
+
             }
             if (failures.Count > 0) 
             {
@@ -1058,6 +1064,14 @@ namespace Al_BoomehDAL.Classes
                 .AsNoTracking()
                 .Where(o => o.Id == orderId)
                 .Select(o => o.Customer.Email)
+                .FirstOrDefaultAsync();
+        }
+        public async Task<int?> GetCartLineOwnerId(int lineId)
+        {
+            return await _context.OrderLines
+                .AsNoTracking()
+                .Where(l => l.Id == lineId && l.IsCart)
+                .Select(l => (int?)l.Order.CustomerId)
                 .FirstOrDefaultAsync();
         }
 

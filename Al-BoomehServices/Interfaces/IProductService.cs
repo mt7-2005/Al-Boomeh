@@ -9,9 +9,9 @@ namespace Al_BoomehServices.Interfaces
     public interface IProductService
     {
         Task<bool> IsExist(int id);
-        Task<List<ProductInfoDTO>?> GetProductsByStore(int storeId, int pagenumber, int pagesize);
-        Task<List<ProductInfoDTO>?> GetProductsByCategory(int categoryId, int pagenumber, int pagesize);
-        Task<List<ProductInfoDTO>?> GetOutOfStockProducts(int pagenumber, int pagesize, int storeId);
+        Task<List<ProductInfoDTO>?> GetProductsByStore(int storeId, int pageNumber, int pageSize);
+        Task<List<ProductInfoDTO>?> GetProductsByCategory(int categoryId, int pageNumber, int pageSize);
+        Task<List<ProductInfoDTO>?> GetOutOfStockProducts(int pageNumber, int pageSize, int storeId);
         Task<ProductInfoDTO?> GetProductById(int productId);
         Task<int> CreateProduct(CreateProductDTO productDTO);
         Task<bool> UpdateProduct(int productId, UpdateProductDTO productDTO);

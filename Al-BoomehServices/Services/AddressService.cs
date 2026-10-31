@@ -111,5 +111,14 @@ namespace Al_BoomehDAL.Classes
                 .AnyAsync(a => a.Id == id);
             return result;
         }
+        public async Task<int?> GetOwnerId(int addressId)
+        {
+            return await _context.Addresses
+                .AsNoTracking()
+                .Where(a => a.Id == addressId)
+                .Select(a => (int?)a.CustomerId)
+                .FirstOrDefaultAsync();
+        }
+
     }
 }

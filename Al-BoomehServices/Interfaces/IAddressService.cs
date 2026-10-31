@@ -13,5 +13,6 @@ namespace Al_BoomehServices.Interfaces
         Task<bool> DeleteAddress(int id);
         Task<bool> UpdateAddress(AddressDTO addressDTO);
         Task<bool> IsExist(int id);
+        Task<int?> GetOwnerId(int addressId);
     }
 }
