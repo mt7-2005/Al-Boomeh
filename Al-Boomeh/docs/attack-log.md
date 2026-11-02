@@ -135,14 +135,14 @@ Does `request-OTP` (or `verify`, or staff login) answer differently for a real v
 ---
 
 ---
-
 ## 13. Owner checks on Addresses and cart lines (Review #7, Fix 5)
 Customer A logs in. Customer B owns address 6 and cart line 900. A tries to change B's rows while passing A's own id. Expect `403`, and B's rows must not change.
 
-- **Attack 1:** `DELETE /api/Addresses/6` with A's token → expected `403`.
-- **Attack 2:** `PUT /api/Addresses/{A's own address id}` with `"id": 6` in the body → expected `200`, and **address 6 must not change** (the route id wins). Then `PUT /api/Addresses/6` with A's token → expected `403`.
-- **Attack 3:** `DELETE /api/Orders/cart-lines/900` with A's token → expected `403`.
-- **Result:** ⬜ run these three and fill in the real status codes.
+- **Attack 1:** `DELETE /api/Addresses/6` with A's token → expected `403`. **Response:** `403` ✅
+- **Attack 2:** `PUT /api/Addresses/{A's own address id}` with `"id": 6` in the body → expected `200`, and address 6 must not change (the route id wins). **Response:** `200` ✅. I read address 6 after the call and it did not change ✅
+- **Attack 2b:** `PUT /api/Addresses/6` with A's token → expected `403`. **Response:** `403` ✅
+- **Attack 3:** `DELETE /api/Orders/cart-lines/900` with A's token → expected `403`. **Response:** `403` ✅
+- **Result:** ✅ all three attacks were blocked, and B's rows did not change.
 
 ## Summary
 
@@ -160,4 +160,4 @@ Customer A logs in. Customer B owns address 6 and cart line 900. A tries to chan
 | 10 | OTP reuse | 400 | ✅ Pass |
 | 11 | OTP request flooding | 429 | ✅ Pass |
 | 12 | Account enumeration | No difference | ✅ Pass |
-| 13 | Owner checks: address and cart line (Review #7) | 403 | ⬜ To run |
+| 13 | Owner checks on Addresses and cart lines | 403 / 200 (no change) / 403 | ✅ 403, 200, 403. B's rows did not change |

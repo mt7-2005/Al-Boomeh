@@ -40,8 +40,7 @@ namespace Al_BoomehAPI.BackgroundServices
                         {
                             await publisher.Publish(message);
 
-                            // Test C — the relay dies halfway
-                            //throw new Exception("message for test c");
+
 
                             await outBoxService.MarkMessageAsSent(message.Id);
 
@@ -54,7 +53,7 @@ namespace Al_BoomehAPI.BackgroundServices
                     _logger.LogError(ex, "The outbox relay failed to send a batch.");
                 }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(5000), stoppingToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(500), stoppingToken);
             }
         }
     }

@@ -314,10 +314,25 @@ A new empty database (column missing): dotnet ef database update adds the column
 
 
 ## Part-4
-|**After Retry**|**After Crash**|**Stock Before**|**Product**|
-|-|-|-|-|
-|22|17|12|1|
-|7|2|2|2|
 
-**Order 30056 with productId =1 and quantity =5 / Order 30057 with productId =2 and quantity=5**
 
+- Order 300136: product 1, quantity 5
+- Order 300137: product 2, quantity 5
+
+
+| Product | Stock before | After crash | After retry |
+|---|---|---|---|
+| 1 | 188 | 188 | 193 |
+| 2 | 138 | 138 | 143 |
+
+
+**Proof of the rollback (from the log).** The `UPDATE [Product] SET StockQuantity = StockQuantity + @p` ran for order 300136. Right after it, the log shows `[ERR] Failed to decline abandoned order 300136 — System.Exception: test crash`. The catch block rolled back the transaction, so the stock added before the crash was undone. The "after crash" column is taken from this log, not from a separate SQL read.
+
+
+
+| Id | OrderId | OldStatus | NewStatus | Time |
+|---|---|---|---|---|
+| 1288860 | 300137 | 1 | 7 | 2026-11-02 19:32:21 |
+| 1288861 | 300136 | 1 | 7 | 2026-11-02 19:32:21 |
+
+**Result.** The decline, the stock give-back and the history row are in one transaction. A crash rolls all three back, and the retry does them once. The forced crash and `_crashedOnce` are deleted.

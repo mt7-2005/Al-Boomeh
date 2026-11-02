@@ -8,10 +8,22 @@ no notifications was found its mean because the test line "sever crached" betwee
 **nothing in the system said that something went wrong. No error, no failed job, no alert.**
 
 ## the delay in orderplace :
-03:11:07.9744714 − 03:11:06.8974400 = 1.0770314 s ≈ 1077 ms
-this the time between order saved in the database and snet the notification 
-Background Service was used with polling 500ms
+The relay was waiting 5000 ms between rounds, which broke the 2-second limit.
+I set it back to 500 ms and measured again with new orders after the fix:
 
+| Outbox row | CreatedAtUtc | SentAtUtc | Delay |
+|---|---|---|---|
+| 85 | 2026-11-02 21:05:04.844 | 2026-11-02 21:05:05.374 | 530 ms |
+| 86 | 2026-11-02 21:46:13.251 | 2026-11-02 21:46:13.470 | 218 ms |
+| 87 | 2026-11-02 21:46:29.234 | 2026-11-02 21:46:29.555 | 321 ms |
+| 88 | 2026-11-02 21:46:58.387 | 2026-11-02 21:46:58.623 | 237 ms |
+
+Result: every delay is under 2 seconds. The slowest was 530 ms. The relay waits at most 500 ms between rounds, plus the publish time. ✅
+
+## Test A :
+The app ran and did stop (crashed). When I restarted it, the relay read 50 rows from the Outbox and published the events that update the analytics and send the notifications.
+
+After the restart, the analytics tally for the store went up by the order's amount: it was 1546.45 before and 1553.75 after (order total 7.30). ✅
 ## Test B :
 The message cannot be sent before the order is saved, because the outbox row must be saved in the same transaction as the order. Therefore, if the relay loop finds no row, no message is sent.
 
@@ -47,8 +59,11 @@ info: 10/21/2026 16:15:48.329 RelationalEventId.CommandExecuted[20101] (Microsof
       WHERE [u].[IsDeleted] = CAST(0 AS bit) AND [u].[Role] = 1 AND [u].[StoreID] = @__storeId_0 AND [u].[Email] IS NOT NULL
 [16:15:48 INF] Notification to legros, gutmann and lindgren@al-boomeh.com: New order Order 300064, total 7.80
 
-And the rule being applied is: the messageId must be stored in the database so that the message can be tracked and we can know whether it was sent or not.
+The rule: make the message id once, save it with the outbox row, and send the same id every time.
 
+`SentAtUtc` is what tells me if a message was sent. The message id has another job: it lets the consumer know if it has seen this message before.
+
+If a new id is made on each send, every copy looks like a new message, so the consumer can never skip a duplicate. With one stored id, the copy has the same id, and the consumer skips it.
 ## Two controlls break the rule of the day :
 
 - POST /api/Orders/send-messages calls SendConfirmation
@@ -59,4 +74,12 @@ And the rule being applied is: the messageId must be stored in the database so t
  I used a background service because the requirement is that the delay be under two seconds, so I can control how often it polls for new messages and set it to every 500 ms.
 
 If Hangfire were used instead, the shortest interval it can run at is one minute, so it isn't suitable here.
+
+## Part 4 :
+## Part 4 :
+**Experiment 1 (no transaction).** I turned off the transaction and saved the tally first. I threw once before the "handled" row was saved. When the message came again, the order was counted twice (the tally went up by 2).
+
+**Experiment 2 (my real code).** I put the transaction back and threw once after both saves, before `CommitAsync`. When the message came again, the tally went up only once.
+
+Inside one transaction, the order of the two writes does not matter.
 

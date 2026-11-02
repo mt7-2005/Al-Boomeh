@@ -15,30 +15,21 @@ namespace Al_BoomehServices.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<AnalyticService> _logger;
-
-        public AnalyticService(AppDbContext context, ILogger<AnalyticService> logger)
+        private readonly IProcessedMessageService _processed;
+        public AnalyticService(AppDbContext context, ILogger<AnalyticService> logger, IProcessedMessageService processed)
         {
             _context = context;
             _logger = logger;
+            _processed = processed;
         }
 
         public async Task<bool> UpdateAnalytic(int storeId, decimal totalRevenue, Guid messageId)
         {
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            _context.ProcessedMessages.Add(new ProcessedMessage { MessageId = messageId, Consumer = "analytics" });
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex)
-                when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlException
-                      && (sqlException.Number == 2601 || sqlException.Number == 2627))
-            {
-                _logger.LogInformation("Message {MessageId} was already processed. Skipping it.", messageId);
+            if (!await _processed.TryAdd(messageId, "analytics"))
                 return false;
-            }
 
             var store = await _context.Analytics.FirstOrDefaultAsync(s => s.StoreId == storeId);
 

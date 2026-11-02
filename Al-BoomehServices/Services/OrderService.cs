@@ -103,7 +103,6 @@ namespace Al_BoomehDAL.Classes
             string date = DateTime.UtcNow.ToString("yyMM");
             string count = (orderId % 1000).ToString("D3");
             string code = date + number.ToString() + count;
-            //  if (await IsOrderExistByCode(code)) return await _CreateOrderCode(orderId);
 
             return code;
         }
@@ -512,7 +511,7 @@ namespace Al_BoomehDAL.Classes
                     int roweffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    //Environment.Exit(1);
+                    
 
                     if (roweffected > 0)
                     {
@@ -962,7 +961,6 @@ namespace Al_BoomehDAL.Classes
                 .AnyAsync(o => o.Id == id);
             return result;
         }
-
         public async Task DeclineAbandonedOrders()
         {
             var failures = new List<Exception>();
