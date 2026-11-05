@@ -83,3 +83,21 @@ If Hangfire were used instead, the shortest interval it can run at is one minute
 
 Inside one transaction, the order of the two writes does not matter.
 
+## Two copies of the app, one outbox :
+
+- In the first test with 10 orders, I found no duplicate messages. The distribution was 5 per worker, and the RabbitMQ queue went from 10 to 5 to 0.
+
+- Then I ran a bigger test with 100 orders to try to trigger the error, and again I found no duplicate messages. Still, it will certainly happen under more favorable conditions and heavier load.
+
+- Yes, the order did break, and messages are now sent in a disorganized way. For example:
+
+[12:40:25 INF] Analytics updated for store with Id 1
+[12:40:25 INF] Notification to romaine28@gmail.com: Your order was placed Order 300051, total 7.80
+[12:40:25 INF] Analytics updated for store with Id 1
+[12:40:25 INF] Notification to legros, gutmann and lindgren@al-boomeh.com: New order Order 300051, total 7.80
+[12:40:25 INF] Analytics updated for store with Id 1
+[12:40:25 INF] Analytics updated for store with Id 1
+[12:40:25 INF] Consume at 2026-11-05T09:40:25.4232551Z
+
+The analytics was updated 3 times against a single notification to the store. Also, the confirmation is not sent until all the commands have finished for all the messages.
+

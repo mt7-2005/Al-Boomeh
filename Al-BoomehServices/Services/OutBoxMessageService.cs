@@ -11,7 +11,7 @@ using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehServices.Services
 {
-    public class OutBoxMessageService:IOutBoxMessageService
+    public class OutBoxMessageService : IOutBoxMessageService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OutBoxMessageService> _logger;
@@ -23,35 +23,60 @@ namespace Al_BoomehServices.Services
         }
         public async Task<List<MessageDto>?> GetUnSentMessages()
         {
-            var messages=await _context.OutboxMessages
-                .Where(o=>o.SentAtUtc==null)
-                .Select(m=>new MessageDto
+            await using (var transaction = await _context.Database.BeginTransactionAsync())
+            {
+                try
                 {
-                    Id = m.Id,
-                    MessageId = m.MessageId,
-                    Version = m.Version,
-                    Body=m.Payload,
-                    Event=m.EventName
-                })
-                .OrderBy(o=>o.Id)
-                .Take(50)
-                .ToListAsync();
+                    DateTime now = DateTime.UtcNow;
 
-            return messages;
+                    var messages = await _context.OutboxMessages
+                      .FromSqlInterpolated($@"
+                        SELECT TOP (50) *
+                        FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
+                        WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL
+                        ORDER BY Id"
+                    )
+                      .ToListAsync();
+
+
+                    var ids = messages.Select(m => m.Id).ToList();
+
+                    await _context.OutboxMessages
+                      .Where(m => ids.Contains(m.Id))
+                      .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReadAtUtc, now));
+
+                    await transaction.CommitAsync();
+
+
+                    return messages.Select(m => new MessageDto
+                    {
+                        Id = m.Id,
+                        MessageId = m.MessageId,
+                        Event = m.EventName,
+                        Body = m.Payload,
+                        Version = m.Version
+                    }).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Failed to get OutBoxMessages" + ex.Message);
+                    throw new Exception("Failed to get OutBoxMessages");
+                }
+            }
         }
         public async Task MarkMessageAsSent(int messageId)
         {
-            var message=await _context.OutboxMessages
-                .Where(o=>o.Id==messageId && o.SentAtUtc==null)
+            var message = await _context.OutboxMessages
+                .Where(o => o.Id == messageId && o.SentAtUtc == null)
                 .FirstOrDefaultAsync();
 
             if (message == null) throw new NotFoundException("No message found");
 
-            message.SentAtUtc= DateTime.UtcNow;
+            message.SentAtUtc = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            
-            
-       }
+
+
+        }
     }
 }

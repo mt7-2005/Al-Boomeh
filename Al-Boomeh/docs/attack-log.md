@@ -135,7 +135,9 @@ Does `request-OTP` (or `verify`, or staff login) answer differently for a real v
 ---
 
 ---
-## 13. Owner checks on Addresses and cart lines (Review #7, Fix 5)
+## 13. Owner checks on Addresses and cart lines (Review #7, Fix 5) :
+
+
 Customer A logs in. Customer B owns address 6 and cart line 900. A tries to change B's rows while passing A's own id. Expect `403`, and B's rows must not change.
 
 - **Attack 1:** `DELETE /api/Addresses/6` with A's token → expected `403`. **Response:** `403` ✅

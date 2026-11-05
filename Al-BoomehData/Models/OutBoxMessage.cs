@@ -16,6 +16,7 @@ namespace Al_BoomehDAL.Models
         public DateTime? SentAtUtc { get; set; }
         public int FailedCount { get; set; }
         public string LastErrorMessage { get; set; } = string.Empty;
+        public DateTime? ReadAtUtc { get; set; }
 
     }
 }

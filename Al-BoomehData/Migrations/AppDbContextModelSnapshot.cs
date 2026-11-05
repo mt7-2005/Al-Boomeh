@@ -855,7 +855,7 @@ namespace Al_BoomehDAL.Migrations
                     b.ToTable("OtpCode", (string)null);
                 });
 
-            modelBuilder.Entity("Al_BoomehDAL.Models.OutboxMessage", b =>
+            modelBuilder.Entity("Al_BoomehDAL.Models.OutBoxMessage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -889,6 +889,9 @@ namespace Al_BoomehDAL.Migrations
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("SentAtUtc")
                         .HasColumnType("datetime2");
