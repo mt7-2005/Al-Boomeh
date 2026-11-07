@@ -274,6 +274,33 @@ app.Lifetime.ApplicationStopping.Register(() =>
     connection.CloseAsync().GetAwaiter().GetResult();
 });
 
+app.UseWebSockets();
+
+app.Map("/ws/echo", async context =>
+{
+    if (!context.WebSockets.IsWebSocketRequest)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        return;
+    }
+
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    var buffer = new byte[4096];
+
+    var received = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+    while (!received.CloseStatus.HasValue)
+    {
+        var message = new ArraySegment<byte>(buffer, 0, received.Count);
+        await socket.SendAsync(message, received.MessageType, received.EndOfMessage, CancellationToken.None);
+
+        received = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+    }
+
+    await socket.CloseAsync(received.CloseStatus.Value, received.CloseStatusDescription, CancellationToken.None);
+});
+
+
 app.MapControllers();
 
 
