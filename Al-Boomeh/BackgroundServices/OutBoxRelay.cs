@@ -50,7 +50,7 @@ namespace Al_BoomehAPI.BackgroundServices
                             catch (Exception ex)
                             {
                                 await outBoxService.UpdateErrorCount(message.Id, ex.Message);
-                                _logger.LogInformation("Test " + ex.Message);
+                                _logger.LogWarning(ex, "Failed to publish outbox {Id}", message.Id);
                             }
                         }
                     }

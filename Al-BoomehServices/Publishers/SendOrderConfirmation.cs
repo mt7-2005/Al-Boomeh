@@ -45,7 +45,7 @@ namespace Al_BoomehServices.Publishers
 
                 var props = new BasicProperties
                 {
-                    MessageId = Guid.NewGuid().ToString(),
+                    MessageId =sendOrderConfirmationDTO.MessageId.ToString(),
                     Persistent = true,
                     Headers = new Dictionary<string, object?>
                     {

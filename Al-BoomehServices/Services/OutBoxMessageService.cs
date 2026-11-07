@@ -34,7 +34,8 @@ namespace Al_BoomehServices.Services
                       .FromSqlInterpolated($@"
                         SELECT TOP (50) *
                         FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
-                        WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL AND FailedCount < 5
+                        WHERE SentAtUtc IS NULL AND FailedCount < 5
+                        AND (ReadAtUtc IS NULL OR ReadAtUtc < DATEADD(second, -30, SYSUTCDATETIME()))
                         ORDER BY Id "
                     )
                       .ToListAsync();

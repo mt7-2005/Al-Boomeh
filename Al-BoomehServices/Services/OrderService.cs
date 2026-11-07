@@ -491,7 +491,7 @@ namespace Al_BoomehDAL.Classes
                     {
                         StoreId = order.StoreId,
                         CustomerId = order.CustomerId,
-                        OrderId = 999999999,
+                        OrderId = order.Id,
                         Total = order.TotalAmount.Value,
                         CreatedAtUtc = DateTime.UtcNow,
                     };
@@ -503,7 +503,8 @@ namespace Al_BoomehDAL.Classes
                         LastErrorMessage = string.Empty,
                         FailedCount = 0,
                         EventName = "OrderPlaced",
-                        Payload = JsonSerializer.Serialize(evt)
+                        Payload = JsonSerializer.Serialize(evt),
+                        CreatedAtUtc=DateTime.UtcNow
                     };
 
                     await _context.OutboxMessages.AddAsync(outboxMessage);

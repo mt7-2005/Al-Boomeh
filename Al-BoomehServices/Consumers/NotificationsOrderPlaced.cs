@@ -136,7 +136,8 @@ namespace Al_BoomehServices.Consumers
                         await sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
                         {
                             OrderId = order.OrderId,
-                            CustomerId = order.CustomerId
+                            CustomerId = order.CustomerId,
+                            MessageId=messageId
                         });
 
                         _logger.LogInformation("Consume at {Ts:O}", DateTime.UtcNow);

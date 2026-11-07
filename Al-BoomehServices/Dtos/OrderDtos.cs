@@ -21,6 +21,7 @@ namespace Al_BoomehDAL.Classes
         public int OrderId { get; set; }
         public int CustomerId { get; set; }
         public int SequenceNumber { get; set; }
+        public Guid MessageId { get; set; }
     }
 
     public class PlaceOrderDTO
