@@ -30,7 +30,7 @@ namespace Al_BoomehServices.Publishers
                     _channel = await _connection.CreateChannelAsync();
                     await _channel.ExchangeDeclareAsync(ExchangeName, ExchangeType.Fanout, durable: true);
                 }
-                if (message.Body.StartsWith("{bad")) throw new InvalidOperationException("Simulated publish failure");
+
                 var props = new BasicProperties
                 {
                     MessageId = message.MessageId.ToString(),
