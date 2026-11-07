@@ -453,7 +453,8 @@ namespace Al_Boomeh.Controllers
             {
                 await _sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
                 {
-                    SequenceNumber = i
+                    SequenceNumber = i,
+                    MessageId=Guid.NewGuid()
                 });
             }
             return Ok();

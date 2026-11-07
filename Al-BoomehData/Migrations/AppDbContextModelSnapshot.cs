@@ -896,7 +896,8 @@ namespace Al_BoomehDAL.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Id")
-                        .HasDatabaseName("IX_OutboxMessages_Pending");
+                        .HasDatabaseName("IX_OutboxMessages_Pending")
+                        .HasFilter("[SentAtUtc] IS NULL");
 
                     b.ToTable("OutboxMessages");
                 });

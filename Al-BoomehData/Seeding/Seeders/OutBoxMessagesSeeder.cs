@@ -29,12 +29,14 @@ namespace Al_BoomehDAL.Seeding.Seeders
 
             for (int i = 0; i < count; i++)
             {
+                var createdAtUtc = DateTime.UtcNow.AddDays(-faker.Random.Int(1, 30));
+
                 var payload = new Payload()
                 {
                     OrderId = i,
                     StoreId = faker.Random.Int(1, 50),
                     CustomerId = faker.Random.Int(1, 20000),
-                    CreatedAtUtc = DateTime.UtcNow,
+                    CreatedAtUtc = createdAtUtc,
                     Total = faker.Random.Decimal(1, 50)
 
                 };
@@ -42,7 +44,7 @@ namespace Al_BoomehDAL.Seeding.Seeders
                 {
                     MessageId = faker.Random.Guid(),
                     EventName = "OrderPlaced",
-                    CreatedAtUtc = DateTime.UtcNow,
+                    CreatedAtUtc = createdAtUtc,
                     Payload = JsonSerializer.Serialize(payload),
                     SentAtUtc = DateTime.UtcNow,
                     ReadAtUtc = DateTime.UtcNow,

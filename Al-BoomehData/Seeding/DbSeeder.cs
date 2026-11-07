@@ -60,7 +60,6 @@ namespace Al_BoomehDAL.Seeding
             table.Columns.Add("LastErrorMessage", typeof(string));
             table.Columns.Add("ReadAtUtc", typeof(DateTime));
             table.Columns.Add("CreatedAtUtc", typeof(DateTime));
-            table.Columns.Add("IsDeleted", typeof(bool));
 
             return table;
         }
@@ -81,7 +80,6 @@ namespace Al_BoomehDAL.Seeding
                 row["LastErrorMessage"] = outBox.LastErrorMessage;
                 row["ReadAtUtc"] = outBox.ReadAtUtc;
                 row["CreatedAtUtc"] = outBox.CreatedAtUtc;
-                row["IsDeleted"] = false;
                 table.Rows.Add(row);
             }
 
@@ -238,20 +236,20 @@ namespace Al_BoomehDAL.Seeding
             var totalSw = Stopwatch.StartNew();
 
 
-            await WipeAllAsync();
+            //await WipeAllAsync();
 
-            await SeedCategoriesAsync();
-            await SeedStoresAsync();
-            await SeedCustomersAsync();
-            await SeedUsersAsync();
-            await SeedProductsAsync();
-
-
-            await SeedAddressesAsync();
+            //await SeedCategoriesAsync();
+            //await SeedStoresAsync();
+            //await SeedCustomersAsync();
+            //await SeedUsersAsync();
+            //await SeedProductsAsync();
 
 
+            //await SeedAddressesAsync();
 
-            await SeedOrdersWithLinesAndHistoryAsync();
+
+
+            //await SeedOrdersWithLinesAndHistoryAsync();
 
             await SeedOutBoxMessagesAsync();
 

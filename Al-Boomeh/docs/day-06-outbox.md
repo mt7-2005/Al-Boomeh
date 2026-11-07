@@ -101,11 +101,15 @@ Inside one transaction, the order of the two writes does not matter.
 The analytics was updated 3 times against a single notification to the store. Also, the confirmation is not sent until all the commands have finished for all the messages.
 
 ## The healthy outbox :
-- Relay query: SELECT TOP (50) *  FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
-    WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL
-    ORDER BY Id
+- Relay query:  SELECT TOP (50) *
+ FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
+ WHERE SentAtUtc IS NULL AND FailedCount < 5
+ AND (ReadAtUtc IS NULL OR ReadAtUtc < DATEADD(second, -30, SYSUTCDATETIME()))
+ ORDER BY Id 
 
 - Before: 295 ms. With 200,000 already-sent rows, SQL Server had no index for the WHERE predicate, so it scanned the whole clustered index to find the few unsent rows.
+
+- the count before the cleanup is 200,000 and  after 40,004
 
 - Fix: a filtered index that holds only the unsent rows, keyed by Id so ORDER BY Id .
 
@@ -150,8 +154,7 @@ flowchart TD
 
 1. It is not exactly-once. It is at-least-once.
 The relay publishes a message, then marks the row as sent. These are two separate steps, and nothing ties them together: RabbitMQ is not part of our SQL transaction. If the app crashes after the publish succeeds but before SentAtUtc is saved, the message is already in RabbitMQ while the row still looks unsent. When the row is picked up again, the same message is published a second time. The outbox guarantees that an event is never lost, but it does not guarantee that the event arrives only once. We saw this in our own logs: lines like Message ... was already processed by notifications. Skipping it. are duplicates that reached the consumers.
-
-A related failure goes the other way. If the app dies after the row is claimed (ReadAtUtc is set) but before it is published, the row is stuck, because the relay only picks rows where ReadAtUtc IS NULL. Without a timeout that releases old claims, that event is never sent.
+A dead relay holds its rows for 30 seconds, and then another relay takes them.
 
 2. It adds a delay.
 Before, the event was published inside the request. Now it waits in the table until the next relay cycle, which runs every 500ms, and then until its batch is published. So there is always a gap between placing the order and the customer getting the notification. Usually the gap is under a second, but it grows if the relay falls behind, is stopped, or is stuck on a failing row.
@@ -173,3 +176,16 @@ In NotificationsOrderPlaced, when the notifications are sent, a confirmation is 
 The hardest part was Part 6. It was long and combined several things at once, and I had to actually see the problem happen before I could be sure my fix solved it.
 
 To reproduce it, I created an outbox row with a broken payload and made the publisher catch the failure. At first I recorded each failure the usual way: load the row, increment FailedCount, set LastErrorMessage, then call SaveChanges. Then I found a race condition. Because this is a read-modify-write, two relays failing on the same row at the same time could both read the same count, and one increment would be lost. I fixed it with an atomic update (ExecuteUpdateAsync), which increments the counter in a single UPDATE statement in the database.
+
+To test this, I inserted an outbox row with an invalid body ({bad json). In the publisher I added a check that throws an exception for any message whose body starts with {bad, to simulate a publish failure:
+
+if (message.Body.StartsWith("{bad"))
+    throw new InvalidOperationException("Simulated publish failure");
+
+    | Id | MessageId | Type | Body | ProcessedOn | FailedCount | LastErrorMessage |
+|---|---|---|---|---|---|---|
+| 200196 | 8694C410-CBF1-AB04-6BAF-DB21F3DA3D4A | OrderPlaced | `{bad json` | NULL | 5 | Simulated publish failure |
+
+## How two relays share the outbox :
+
+Say what each piece does: UPDLOCK locks the 50 rows, READPAST makes the other relay skip them, ReadAtUtc marks the claim, and the 30-second limit frees the rows of a relay that died.

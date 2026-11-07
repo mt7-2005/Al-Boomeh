@@ -26,11 +26,7 @@ namespace Al_BoomehServices.Services
         {
             await using (var transaction = await _context.Database.BeginTransactionAsync())
             {
-                try
-                {
-                    DateTime now = DateTime.UtcNow;
-
-                    var messages = await _context.OutboxMessages 
+                var messages = await _context.OutboxMessages 
                       .FromSqlInterpolated($@"
                         SELECT TOP (50) *
                         FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
@@ -45,7 +41,7 @@ namespace Al_BoomehServices.Services
 
                     await _context.OutboxMessages
                       .Where(m => ids.Contains(m.Id))
-                      .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReadAtUtc, now));
+                      .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReadAtUtc, DateTime.UtcNow));
 
                     await transaction.CommitAsync();
 
@@ -58,12 +54,7 @@ namespace Al_BoomehServices.Services
                         Body = m.Payload,
                         Version = m.Version,
                     }).ToList();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError("Failed to get OutBoxMessages" + ex.Message);
-                    throw new Exception("Failed to get OutBoxMessages");
-                }
+               
             }
         }
         public async Task MarkMessageAsSent(int messageId)
@@ -82,22 +73,14 @@ namespace Al_BoomehServices.Services
         }
         public async Task OutBoxMessagesCleanUp()
         {
-            var now = DateTime.UtcNow;
+            var deleteBefore = DateTime.UtcNow.AddDays(-7);
 
-            var messagesList =await _context.OutboxMessages
-                .Where(m=>m.SentAtUtc!=null && m.CreatedAtUtc <= now.AddDays(-7))
-                .ToListAsync();
+            int deletedCount = await _context.OutboxMessages
+                .Where(m => m.SentAtUtc != null && m.CreatedAtUtc <= deleteBefore)
+                .ExecuteDeleteAsync();
 
-            if (messagesList.Any())
-            {
-                _context.RemoveRange(messagesList);
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Deleted {Count} old messages .", messagesList.Count);
-            }
-            else
-            {
-                _logger.LogInformation("No old messages to delete.");
-            }
+            _logger.LogInformation("Deleted {Count} old outbox messages.", deletedCount);
+
         }
         public async Task UpdateErrorCount(int id,string errorMessage)
         {
