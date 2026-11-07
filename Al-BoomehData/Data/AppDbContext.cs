@@ -70,6 +70,11 @@ public partial class AppDbContext : DbContext
             .HasForeignKey(a => a.StoreId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<OutBoxMessage>()
+            .HasIndex(m => m.Id)
+            .HasDatabaseName("IX_OutboxMessages_Pending");
+
+
         modelBuilder.Entity<DailyReport>(entity => { entity.HasIndex(e => new { e.StoreId, e.ReportDateUtc }).IsUnique();
             entity.Property(e => e.TotalRevenue).HasColumnType("decimal(18, 2)");
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.Restrict); });

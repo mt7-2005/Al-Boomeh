@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Al_BoomehDAL.Models
 {
-    public class OutBoxMessage : BaseEntity
+    public class OutBoxMessage 
     {
         public int Id { get; set; }
         public Guid MessageId { get; set; }
@@ -17,6 +17,7 @@ namespace Al_BoomehDAL.Models
         public int FailedCount { get; set; }
         public string LastErrorMessage { get; set; } = string.Empty;
         public DateTime? ReadAtUtc { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
 
     }
 }

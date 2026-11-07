@@ -229,7 +229,7 @@ builder.Services.AddHostedService<OutBoxRelay>();
 builder.Services.AddScoped<INotificationEngine, LogNotificationEngine>();
 builder.Services.AddScoped<IProcessedMessageService, ProcessedMessageService>();
 builder.Services.AddScoped<IOutBoxMessageService, OutBoxMessageService>();
-
+builder.Services.AddScoped<IOutBoxMessagesCleanUp, OutBoxMessageService>();
 
 
 var app = builder.Build();
@@ -260,6 +260,10 @@ recurringJobs.AddOrUpdate<IDeclineAbandonedOrders>( "decline-abandoned-orders", 
 
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<ITokenCleanup>("token-cleanup", x => x.TokenCleanup(), "0 3 * * *");
+
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<IOutBoxMessagesCleanUp>("out-box-messages-cleanup", x => x.OutBoxMessagesCleanUp(), "0 4 * * *");
+
 
 app.Services.GetRequiredService<IRecurringJobManager>()
     .AddOrUpdate<IDailyReports>("daily-report", x => x.DailyReports(), "0 2 * * *");

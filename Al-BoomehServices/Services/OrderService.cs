@@ -491,7 +491,7 @@ namespace Al_BoomehDAL.Classes
                     {
                         StoreId = order.StoreId,
                         CustomerId = order.CustomerId,
-                        OrderId = order.Id,
+                        OrderId = 999999999,
                         Total = order.TotalAmount.Value,
                         CreatedAtUtc = DateTime.UtcNow,
                     };
@@ -508,12 +508,12 @@ namespace Al_BoomehDAL.Classes
 
                     await _context.OutboxMessages.AddAsync(outboxMessage);
 
-                    int roweffected = await _context.SaveChangesAsync();
+                    int rowEffected = await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
                     
 
-                    if (roweffected > 0)
+                    if (rowEffected > 0)
                     {
                         
                         _logger.LogInformation("Order Place successfully with order code {OrderCode} at {Ts:O}",

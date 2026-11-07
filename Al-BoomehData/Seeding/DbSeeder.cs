@@ -47,6 +47,46 @@ namespace Al_BoomehDAL.Seeding
             table.Columns.Add("IsDeleted", typeof(bool));
             return table;
         }
+        private DataTable BuildOutBoxMessagesSchema()
+        {
+            var table = new DataTable();
+
+            table.Columns.Add("MessageId", typeof(Guid));
+            table.Columns.Add("EventName", typeof(string));
+            table.Columns.Add("Version", typeof(int));
+            table.Columns.Add("Payload", typeof(string));
+            table.Columns.Add("SentAtUtc", typeof(DateTime));
+            table.Columns.Add("FailedCount", typeof(int));
+            table.Columns.Add("LastErrorMessage", typeof(string));
+            table.Columns.Add("ReadAtUtc", typeof(DateTime));
+            table.Columns.Add("CreatedAtUtc", typeof(DateTime));
+            table.Columns.Add("IsDeleted", typeof(bool));
+
+            return table;
+        }
+        private DataTable ConvertOutBoxMessagesToDataTable(List<OutBoxMessage> outBoxMessages)
+        {
+            var table = BuildOutBoxMessagesSchema();
+
+            foreach (var outBox in outBoxMessages)
+            {
+                var row = table.NewRow();
+
+                row["MessageId"] = outBox.MessageId;
+                row["EventName"] = outBox.EventName;
+                row["Version"] = outBox.Version;
+                row["Payload"] = outBox.Payload;
+                row["SentAtUtc"] = outBox.SentAtUtc;
+                row["FailedCount"] = outBox.FailedCount;
+                row["LastErrorMessage"] = outBox.LastErrorMessage;
+                row["ReadAtUtc"] = outBox.ReadAtUtc;
+                row["CreatedAtUtc"] = outBox.CreatedAtUtc;
+                row["IsDeleted"] = false;
+                table.Rows.Add(row);
+            }
+
+            return table;
+        }
         private DataTable ConvertOrdersToDataTable(List<Order> orders)
         {
             var table = BuildOrderSchema();
@@ -213,7 +253,7 @@ namespace Al_BoomehDAL.Seeding
 
             await SeedOrdersWithLinesAndHistoryAsync();
 
-
+            await SeedOutBoxMessagesAsync();
 
             totalSw.Stop();
             PrintTimingReport(totalSw.ElapsedMilliseconds);
@@ -428,7 +468,36 @@ namespace Al_BoomehDAL.Seeding
             await SaveInBatchesAsync("OrderStatusHistory", history, batchSize: 20000);
         }
 
-        
+        private async Task SeedOutBoxMessagesAsync()
+        {
+            var outBoxMessages = OutBoxMessagesSeeder.Generate();
+            var table=ConvertOutBoxMessagesToDataTable(outBoxMessages);
+            var sw = Stopwatch.StartNew();
+
+            var connectionString = _context.Database.GetConnectionString();
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+                using var bulkCopy = new SqlBulkCopy(connection)
+                {
+                    DestinationTableName = "OutBoxMessages",
+                    BulkCopyTimeout = 300,
+                };
+
+                foreach (DataColumn column in table.Columns)
+                {
+                    bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+                }
+
+                await bulkCopy.WriteToServerAsync(table);
+
+
+                sw.Stop();
+                _timings["OutBoxMessages"] = (outBoxMessages.Count, sw.ElapsedMilliseconds);
+                Console.WriteLine($"  Seeded {outBoxMessages.Count:N0} OutBoxMessages in {sw.ElapsedMilliseconds:N0}ms");
+            }
+        }
         private async Task SaveBatchAsync<T>(string label, List<T> entities) where T : class
         {
             var sw = Stopwatch.StartNew();

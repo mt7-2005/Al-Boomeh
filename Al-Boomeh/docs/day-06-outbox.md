@@ -76,7 +76,6 @@ If a new id is made on each send, every copy looks like a new message, so the co
 If Hangfire were used instead, the shortest interval it can run at is one minute, so it isn't suitable here.
 
 ## Part 4 :
-## Part 4 :
 **Experiment 1 (no transaction).** I turned off the transaction and saved the tally first. I threw once before the "handled" row was saved. When the message came again, the order was counted twice (the tally went up by 2).
 
 **Experiment 2 (my real code).** I put the transaction back and threw once after both saves, before `CommitAsync`. When the message came again, the tally went up only once.
@@ -101,3 +100,76 @@ Inside one transaction, the order of the two writes does not matter.
 
 The analytics was updated 3 times against a single notification to the store. Also, the confirmation is not sent until all the commands have finished for all the messages.
 
+## The healthy outbox :
+- Relay query: SELECT TOP (50) *  FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
+    WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL
+    ORDER BY Id
+
+- Before: 295 ms. With 200,000 already-sent rows, SQL Server had no index for the WHERE predicate, so it scanned the whole clustered index to find the few unsent rows.
+
+- Fix: a filtered index that holds only the unsent rows, keyed by Id so ORDER BY Id .
+
+- After: 20 ms (~15× faster). The plan is now an Index Seek on the small filtered index plus a Key Lookup for the 50 rows.
+
+- Decision: Outbox rows do not take part in soft delete. The cleanup job deletes them physically.
+- A row only exists to carry an event to the broker. Once it is sent, its job is done. The real data (the order, the customer, and so on) lives in its own tables, which keep soft delete.
+- There is nothing to audit or restore.
+- Soft delete defeats the purpose of the cleanup. It turns DELETE into UPDATE IsDeleted = 1, so the rows stay, the table keeps growing, and indexes and backups keep getting bigger. My first test proved this: the job ran.
+
+
+```mermaid
+
+flowchart TD
+    A[OrderPlaced<br/>]
+    B[Save OutBoxMessage<br/>]
+
+    C[Relay loop<br/>]
+    D[Publish]
+    E[SavingAnalytics<br/>Consumer]
+    F[NotificationsOrderPlaced<br/>Consumer]
+
+    G[SendOrderConfirmation<br/>Publisher]
+    J[Confirmation Queue<br/>Work Queue]
+    I[ConfirmationWorker<br/>Consumer]
+
+    H[Send-messages<br/>Endpoint]
+
+    A -->|OrderPlaced| B
+    B --> C
+    C --> D
+    D -->|Publish|F
+    D -->|Publish| E
+    F --> G
+    H --> G
+
+    G -->|Publish| J
+    J --> I
+```
+
+## What the outbox does NOT do for us
+
+1. It is not exactly-once. It is at-least-once.
+The relay publishes a message, then marks the row as sent. These are two separate steps, and nothing ties them together: RabbitMQ is not part of our SQL transaction. If the app crashes after the publish succeeds but before SentAtUtc is saved, the message is already in RabbitMQ while the row still looks unsent. When the row is picked up again, the same message is published a second time. The outbox guarantees that an event is never lost, but it does not guarantee that the event arrives only once. We saw this in our own logs: lines like Message ... was already processed by notifications. Skipping it. are duplicates that reached the consumers.
+
+A related failure goes the other way. If the app dies after the row is claimed (ReadAtUtc is set) but before it is published, the row is stuck, because the relay only picks rows where ReadAtUtc IS NULL. Without a timeout that releases old claims, that event is never sent.
+
+2. It adds a delay.
+Before, the event was published inside the request. Now it waits in the table until the next relay cycle, which runs every 500ms, and then until its batch is published. So there is always a gap between placing the order and the customer getting the notification. Usually the gap is under a second, but it grows if the relay falls behind, is stopped, or is stuck on a failing row.
+
+3. It adds load to the database.
+Every order now writes an extra row in the same transaction. The relay queries the table every 500ms even when there is nothing to send, and every sent row is updated again. The table also keeps growing, which is why we needed a filtered index (the relay query went from 295 ms to 20 ms) and a cleanup job that physically deletes sent rows older than 7 days. The broker’s work has moved partly onto SQL Server.
+
+4. It does nothing for a consumer whose own work is unsafe to repeat.
+The outbox only covers the path from our database to RabbitMQ. It ends at the publish. Because of point 1, every consumer must expect the same message more than once, and protecting itself is the consumer’s job, not the outbox’s. Our consumers do this with the ProcessedMessages table and its unique index on (MessageId, Consumer). A consumer without this protection, for example one that charges a card or sends an SMS, would do that work twice, and the outbox could not prevent it.
+
+Also worth noting: it does not keep order.
+With two relays claiming batches in parallel, plus several competing consumers and retries, events are not delivered in the order they were created.
+
+## Other Place write to two places with no transaction :
+
+In NotificationsOrderPlaced, when the notifications are sent, a confirmation is also sent to the store through another publisher.
+
+## The hardest thing in the day :
+The hardest part was Part 6. It was long and combined several things at once, and I had to actually see the problem happen before I could be sure my fix solved it.
+
+To reproduce it, I created an outbox row with a broken payload and made the publisher catch the failure. At first I recorded each failure the usual way: load the row, increment FailedCount, set LastErrorMessage, then call SaveChanges. Then I found a race condition. Because this is a read-modify-write, two relays failing on the same row at the same time could both read the same count, and one increment would be lost. I fixed it with an atomic update (ExecuteUpdateAsync), which increments the counter in a single UPDATE statement in the database.

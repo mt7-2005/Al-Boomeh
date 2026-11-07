@@ -2,6 +2,7 @@
 using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Publishers;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
@@ -139,6 +140,8 @@ namespace Al_BoomehServices.Consumers
                     }
                     catch (Exception publishEx)
                     {
+                     
+
                         _logger.LogCritical(publishEx, "Failed to route failed message");
                         await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);
                     }

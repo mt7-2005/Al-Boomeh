@@ -11,5 +11,6 @@ namespace Al_BoomehServices.Interfaces
     {
         Task<List<MessageDto>?> GetUnSentMessages();
         Task MarkMessageAsSent(int messageId);
+        Task UpdateErrorCount(int id, string errorMessage);
     }
 }

@@ -1,5 +1,7 @@
 ﻿using Al_BoomehDAL.Models;
 using Al_BoomehServices.Dtos;
+using Al_BoomehServices.Interfaces;
+using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -7,11 +9,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Al_BoomehServices.Interfaces;
 
 namespace Al_BoomehServices.Services
 {
-    public class OutBoxMessageService : IOutBoxMessageService
+    public class OutBoxMessageService : IOutBoxMessageService, IOutBoxMessagesCleanUp
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OutBoxMessageService> _logger;
@@ -29,12 +30,12 @@ namespace Al_BoomehServices.Services
                 {
                     DateTime now = DateTime.UtcNow;
 
-                    var messages = await _context.OutboxMessages
+                    var messages = await _context.OutboxMessages 
                       .FromSqlInterpolated($@"
                         SELECT TOP (50) *
                         FROM [OutboxMessages] WITH (UPDLOCK, ROWLOCK, READPAST)
-                        WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL
-                        ORDER BY Id"
+                        WHERE SentAtUtc IS NULL AND ReadAtUtc IS NULL AND FailedCount < 5
+                        ORDER BY Id "
                     )
                       .ToListAsync();
 
@@ -54,7 +55,7 @@ namespace Al_BoomehServices.Services
                         MessageId = m.MessageId,
                         Event = m.EventName,
                         Body = m.Payload,
-                        Version = m.Version
+                        Version = m.Version,
                     }).ToList();
                 }
                 catch (Exception ex)
@@ -77,6 +78,36 @@ namespace Al_BoomehServices.Services
             await _context.SaveChangesAsync();
 
 
+        }
+        public async Task OutBoxMessagesCleanUp()
+        {
+            var now = DateTime.UtcNow;
+
+            var messagesList =await _context.OutboxMessages
+                .Where(m=>m.SentAtUtc!=null && m.CreatedAtUtc <= now.AddDays(-7))
+                .ToListAsync();
+
+            if (messagesList.Any())
+            {
+                _context.RemoveRange(messagesList);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Deleted {Count} old messages .", messagesList.Count);
+            }
+            else
+            {
+                _logger.LogInformation("No old messages to delete.");
+            }
+        }
+        public async Task UpdateErrorCount(int id,string errorMessage)
+        {
+            await _context.OutboxMessages
+               .Where(m => m.Id == id)
+               .ExecuteUpdateAsync(s => s
+                   .SetProperty(m => m.FailedCount, m => m.FailedCount + 1)
+                   .SetProperty(m => m.LastErrorMessage, errorMessage)
+                   .SetProperty(m => m.ReadAtUtc,
+                                m => m.FailedCount + 1 >= 5 ? m.ReadAtUtc : null));
+               
         }
     }
 }

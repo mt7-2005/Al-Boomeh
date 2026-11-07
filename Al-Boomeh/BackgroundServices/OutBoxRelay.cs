@@ -38,13 +38,20 @@ namespace Al_BoomehAPI.BackgroundServices
 
                         foreach (var message in messages!)
                         {
-                            await publisher.Publish(message);
 
+                            try
+                            {
+                                
 
+                                await publisher.Publish(message);
 
-                            await outBoxService.MarkMessageAsSent(message.Id);
-
-
+                                await outBoxService.MarkMessageAsSent(message.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                await outBoxService.UpdateErrorCount(message.Id, ex.Message);
+                                _logger.LogInformation("Test " + ex.Message);
+                            }
                         }
                     }
                 }
