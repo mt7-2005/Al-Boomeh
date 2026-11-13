@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: 1da565df-5d78-4a51-850f-98b9e3b9c614
+
+localResources:
+  specs:
+    - ../Al-Boomeh/obj/Debug/net8.0/EndpointInfo/Al-BoomehAPI.json

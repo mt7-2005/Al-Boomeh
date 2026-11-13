@@ -25,3 +25,14 @@
 - the count of seconds in one hour is 3600s
 - 3600 / 5 = 720 this is the number of how many poling request for 1 customer
 - 720 * 20,001= 14,400,720 that the number of how many requsts would server get
+
+## Part 1 :
+
+### Part 0:
+- Request name : `https://localhost:7027/hubs/orders/negotiate?access_token=&negotiateVersion=1`
+### Part 1:
+- Method : POST
+### Part 2:
+- Status : 404 Not Found
+### Part 3:
+- What SignalR sends : Before opening a WebSocket, SignalR sends an HTTP POST negotiate request to the server, which carries the access token and the negotiateVersion parameter.

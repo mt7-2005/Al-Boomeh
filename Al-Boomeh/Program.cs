@@ -245,6 +245,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRateLimiter();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

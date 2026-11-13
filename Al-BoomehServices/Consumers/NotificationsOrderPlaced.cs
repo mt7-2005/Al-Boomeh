@@ -20,6 +20,7 @@ namespace Al_BoomehServices.Consumers
         private const string ConsumerName = "notifications";
 
         private const string RetryExchangeName = "order-placed.retry";
+        //
         private const string RetryQueueName = "notification-order-placed.retry";
         private const string RetryRoutingKey = "retry";
         private const int RetryDelayMs = 10_000;     
