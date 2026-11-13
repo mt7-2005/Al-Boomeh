@@ -36,3 +36,6 @@
 - Status : 404 Not Found
 ### Part 3:
 - What SignalR sends : Before opening a WebSocket, SignalR sends an HTTP POST negotiate request to the server, which carries the access token and the negotiateVersion parameter.
+### Part 4:
+- The message : Status: unknown
+5:21:39 PM — error: Failed to complete negotiation with the server: Error: : Status code '404' Either this is not a SignalR endpoint or there is a proxy blocking the connection.
