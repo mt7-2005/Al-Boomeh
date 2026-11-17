@@ -37,5 +37,6 @@ namespace Al_BoomehServices.Interfaces
         Task<string?> GetCustomerEmail(int orderId);
 
         Task<int?> GetCartLineOwnerId(int lineId);
+        Task<int?> GetOrderOwnerId(int orderId);
     }
 }

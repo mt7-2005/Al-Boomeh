@@ -6,6 +6,7 @@ using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SQLitePCL;
 using System.Text.Json;
 
 namespace Al_BoomehDAL.Classes
@@ -1074,6 +1075,13 @@ namespace Al_BoomehDAL.Classes
                 .FirstOrDefaultAsync();
         }
 
-
+        public async Task<int?> GetOrderOwnerId(int orderId)
+        {
+            return await _context.Orders
+                .AsNoTracking()
+                .Where(o=> o.Id == orderId)
+                .Select(o => (int?)o.CustomerId)
+                .FirstOrDefaultAsync();
+        }
     }
 }

@@ -33,6 +33,7 @@ using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using static Al_Boomeh.Controllers.OrdersController;
+using Al_Boomeh.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,9 +78,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         { OnMessageReceived = context => 
         {
             if (context.Request.Path.StartsWithSegments("/hangfire") 
-            && context.Request.Cookies.TryGetValue("hangfire_token", out var token)) { context.Token = token; } return Task.CompletedTask;
+            && context.Request.Cookies.TryGetValue("hangfire_token", out var token)) { context.Token = token; } 
+
+            var accessToken = context.Request.Query["access_token"];
+            var isHubRequest = context.HttpContext.Request.Path.StartsWithSegments("/hubs");
+
+            if (isHubRequest && !string.IsNullOrEmpty(accessToken))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
         }
         };
+       
     });
 builder.Services.AddScoped<IAuthorizationHandler, StoreOwnerOrAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, CustomerOwnerOrAdminHandler>();
@@ -231,7 +242,7 @@ builder.Services.AddScoped<IProcessedMessageService, ProcessedMessageService>();
 builder.Services.AddScoped<IOutBoxMessageService, OutBoxMessageService>();
 builder.Services.AddScoped<IOutBoxMessagesCleanUp, OutBoxMessageService>();
 
-
+builder.Services.AddSignalR();
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -304,6 +315,7 @@ app.Map("/ws/echo", async context =>
 
 app.MapControllers();
 
+app.MapHub<OrdersHub>("/hubs/orders");
 
 try
 {
