@@ -329,7 +329,7 @@ namespace Al_Boomeh.Controllers
         }
 
         [Authorize(Roles = "Customer")]
-        [HttpPut("{id}",Name = "PlaceOrder")]
+        [HttpPut("{id}", Name = "PlaceOrder")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> PlaceOrder(int id, PlaceOrderDTO orderDTO, [FromServices] IAuthorizationService authorizationService)
@@ -352,13 +352,13 @@ namespace Al_Boomeh.Controllers
             {
                 decimal deliveryfees = _configuration.GetValue<decimal>("OrderSettings:DeliveryFees");
                 decimal servicefees = _configuration.GetValue<decimal>("OrderSettings:ServiceFees");
-                result =await _order.PlaceOrder(id, orderDTO,deliveryfees,servicefees);
+                result = await _order.PlaceOrder(id, orderDTO, deliveryfees, servicefees);
                 if (result) return Ok();
             }
-            result=await _order.PlaceOrder(id,orderDTO);
+            result = await _order.PlaceOrder(id, orderDTO);
             if (result) return Ok();
             return BadRequest("failed to place order");
-         
+
         }
 
         [Authorize(Roles = "Customer")]
@@ -367,7 +367,7 @@ namespace Al_Boomeh.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public async Task<ActionResult> AddLineToCart(int id,CreateOrderLineDTO lineDTO, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> AddLineToCart(int id, CreateOrderLineDTO lineDTO, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0 || lineDTO == null) return BadRequest("Invalid Data");
             if (!await _order.IsExist(id)) return NotFound("No order found");
@@ -418,7 +418,7 @@ namespace Al_Boomeh.Controllers
         public async Task<ActionResult<OrderLineDTO>> GetLineFromId(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id < 0) return BadRequest("Invalid data");
-            var line=await _order.GetOrderLine(id);
+            var line = await _order.GetOrderLine(id);
 
             if (line == null) return NotFound($"No order line with id {id}");
 
@@ -454,7 +454,7 @@ namespace Al_Boomeh.Controllers
                 await _sendOrderConfirmation.SendConfirmation(new SendOrderConfirmationDTO
                 {
                     SequenceNumber = i,
-                    MessageId=Guid.NewGuid()
+                    MessageId = Guid.NewGuid()
                 });
             }
             return Ok();
@@ -496,5 +496,25 @@ namespace Al_Boomeh.Controllers
             return Ok();
         }
 
+        [Authorize(Roles = "Customer")]
+        [HttpGet("{id}/status")]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<JsonContent>> GetCurrentStatus(int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            if (id <= 0) return BadRequest("Invalid data");
+
+            int? ownerId = await _order.GetOrderOwnerId(id);
+
+            var authResult = await authorizationService.AuthorizeAsync(User, ownerId.Value, "CustomerOwnerOrAdmin");
+            if (!authResult.Succeeded) return Forbid();
+
+            var status = await _order.GetCurrentStatus(id);
+            if (status == null) return NotFound("no status found");
+            var statusJson=new {status=status.ToString()};
+
+            return Ok(JsonSerializer.Serialize(statusJson));
+        }
     }
 }

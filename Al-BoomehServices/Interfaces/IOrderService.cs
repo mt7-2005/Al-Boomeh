@@ -38,5 +38,6 @@ namespace Al_BoomehServices.Interfaces
 
         Task<int?> GetCartLineOwnerId(int lineId);
         Task<int?> GetOrderOwnerId(int orderId);
+        Task<enStatus?> GetCurrentStatus(int orderId);
     }
 }

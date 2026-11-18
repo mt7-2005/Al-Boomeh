@@ -144,3 +144,21 @@ Status: Delivered
 
 ### Part 2:
 The Day 5 fanout exchange for “order placed” let me add this reaction without touching the existing flow: I simply bound a new queue and consumer to it, which publishes through the SignalR hub to notify the partners’ clients whenever an order is placed. Since fanout delivers a copy of every message to each bound queue, the original consumers kept working unchanged. For order status updates I created a separate exchange, so those events are routed independently from the order-placed ones.
+
+## Part 4 :
+
+### Part 0:
+- Bug One : the customer miss the updates for the order status 
+- Bug two : after reconnected nothing send , but when the customer click in Watch order it return the current status for the order its meane if he dont click it evry thing look fine 
+
+### Part 1:
+Status: Preparing
+8:38:37 PM — connected
+8:38:37 PM — watching order 300056
+8:38:37 PM — loaded status Pending
+8:39:08 PM — connection lost, trying again every 5 seconds
+8:40:45 PM — reconnected
+8:40:45 PM — loaded status Preparing
+ 
+### Part 2:
+If we load the status first and the Partner moves the order forward before the connection joins the group, the update is lost: the broadcast goes only to the members the group has at the time it is sent, so this client never receives it. The page keeps showing the old status, and the customer never learns that the order’s status has changed.

@@ -1102,5 +1102,14 @@ namespace Al_BoomehDAL.Classes
                 .Select(o => (int?)o.CustomerId)
                 .FirstOrDefaultAsync();
         }
+        public async Task<enStatus?> GetCurrentStatus(int orderId)
+        {
+            var status=await _context.Orders
+                .AsNoTracking()
+                .Where(o=>o.Id == orderId)
+                .Select(o=>(enStatus)o.Status)
+                .FirstOrDefaultAsync();
+            return status;
+        }
     }
 }

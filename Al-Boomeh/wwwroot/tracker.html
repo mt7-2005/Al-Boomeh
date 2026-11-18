@@ -14,71 +14,114 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8/dist/browser/signalr.min.js"></script>
     <script>
-    let conn;
+        let conn;
+        let watchedOrderId = null;
+        let watchedStoreId = null;
 
-    function write(text) {
-      const item = document.createElement('li');
-      item.textContent = new Date().toLocaleTimeString() + ' — ' + text;
-      document.getElementById('log').appendChild(item);
-    }
+        function write(text) {
+            const item = document.createElement('li');
+            item.textContent = new Date().toLocaleTimeString() + ' — ' + text;
+            document.getElementById('log').appendChild(item);
+        }
 
-    function showStatus(status) {
-      document.getElementById('status').textContent = status;
-    }
+        function showStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
 
-    async function connect() {
-      if (conn) {
-        return;
-      }
+        async function loadStatus(orderId) {
+            const token = document.getElementById('token').value;
 
-      const token = document.getElementById('token').value;
+            const response = await fetch('/api/orders/' + orderId + '/status', {
+                headers: { Authorization: 'Bearer ' + token }
+            });
 
-      const connection = new signalR.HubConnectionBuilder()
-        .withUrl('/hubs/orders?access_token=' + token)
-        .withAutomaticReconnect({ nextRetryDelayInMilliseconds: () => 5000 })
-        .build();
+            if (!response.ok) {
+                write('could not load the status: ' + response.status);
+                return;
+            }
 
-      connection.on('OrderStatusChanged', message => {
-        showStatus(message.status);
-        write('order ' + message.orderId + ' is now ' + message.status);
-      });
+            const body = await response.json();
+            showStatus(body.status);
+            write('loaded status ' + body.status);
+        }
 
-      connection.on('OrderPlaced', message => {
-        write('new order ' + message.orderId);
-      });
+        async function joinAgain() {
+            if (watchedOrderId !== null) {
+                await conn.invoke('WatchOrder', watchedOrderId);
+                await loadStatus(watchedOrderId);
+            }
 
-      connection.onreconnecting(() => write('connection lost, trying again every 5 seconds'));
-      connection.onreconnected(() => write('reconnected'));
-      connection.onclose(() => write('connection closed'));
+            if (watchedStoreId !== null) {
+                await conn.invoke('WatchStore', watchedStoreId);
+            }
+        }
 
-      await connection.start();
-      conn = connection;
-      write('connected');
-    }
+        async function connect() {
+            if (conn) {
+                return;
+            }
 
-    async function watchOrder() {
-      const orderId = Number(document.getElementById('orderId').value);
+            const token = document.getElementById('token').value;
 
-      try {
-        await connect();
-        await conn.invoke('WatchOrder', orderId);
-        write('watching order ' + orderId);
-      } catch (error) {
-        write('error: ' + error.message);
-      }
-    }
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl('/hubs/orders?access_token=' + token)
+                .withAutomaticReconnect({ nextRetryDelayInMilliseconds: () => 5000 })
+                .build();
 
-    async function watchStore() {
-      const storeId = Number(document.getElementById('storeId').value);
+            connection.on('OrderStatusChanged', message => {
+                showStatus(message.status);
+                write('order ' + message.orderId + ' is now ' + message.status);
+            });
 
-      try {
-        await connect();
-        await conn.invoke('WatchStore', storeId);
-        write('watching store ' + storeId);
-      } catch (error) {
-        write('error: ' + error.message);
-      }
-    }
+            connection.on('OrderPlaced', message => {
+                write('new order ' + message.orderId);
+            });
+
+            connection.onreconnecting(() => write('connection lost, trying again every 5 seconds'));
+
+            connection.onreconnected(async () => {
+                write('reconnected');
+
+                try {
+                    await joinAgain();
+                } catch (error) {
+                    write('error: ' + error.message);
+                }
+            });
+
+            connection.onclose(() => write('connection closed'));
+
+            await connection.start();
+            conn = connection;
+            write('connected');
+        }
+
+        async function watchOrder() {
+            const orderId = Number(document.getElementById('orderId').value);
+
+            try {
+                await connect();
+                await conn.invoke('WatchOrder', orderId);
+                watchedOrderId = orderId;
+                write('watching order ' + orderId);
+                await loadStatus(orderId);
+            } catch (error) {
+                write('error: ' + error.message);
+            }
+        }
+
+        async function watchStore() {
+            const storeId = Number(document.getElementById('storeId').value);
+
+            try {
+                await connect();
+                await conn.invoke('WatchStore', storeId);
+                watchedStoreId = storeId;
+                write('watching store ' + storeId);
+            } catch (error) {
+                write('error: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
