@@ -32,7 +32,9 @@ namespace Al_BoomehAPI.BackgroundServices
                     using (var scope = _scopeFactory.CreateScope())
                     {
                         var outBoxService = scope.ServiceProvider.GetRequiredService<IOutBoxMessageService>();
-                        var publisher = scope.ServiceProvider.GetRequiredService<IOrderPlaced>();
+                        var publisherOrderPlaced = scope.ServiceProvider.GetRequiredService<IOrderPlaced>();
+                        var publisherStatusChanged = scope.ServiceProvider.GetRequiredService<IOrderStatusChanged>();
+
                         var messages = await outBoxService.GetUnSentMessages();
 
 
@@ -42,9 +44,14 @@ namespace Al_BoomehAPI.BackgroundServices
                             try
                             {
                                 
-
-                                await publisher.Publish(message);
-
+                                if (message.Event == "OrderStatusChanged")
+                                {
+                                    await publisherStatusChanged.Publish(message);
+                                }
+                                else
+                                {
+                                    await publisherOrderPlaced.Publish(message);
+                                }
                                 await outBoxService.MarkMessageAsSent(message.Id);
                             }
                             catch (Exception ex)

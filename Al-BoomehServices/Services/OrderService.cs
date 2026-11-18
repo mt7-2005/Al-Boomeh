@@ -576,7 +576,7 @@ namespace Al_BoomehDAL.Classes
                             (allowedTargets.Length == 0 ? "none — this is a final status." : string.Join(", ", allowedTargets)));
                     }
                 }
-
+               
 
                 var orderstatushistory = new OrderStatusHistory
                 {
@@ -611,13 +611,32 @@ namespace Al_BoomehDAL.Classes
                         product.IsOutOfStock = false;
                     }
                 }
+                var evt = new OrderStatusChangedDto
+                {
+                    CustomerId = order.CustomerId,
+                    StoreId = order.StoreId,
+                    NewStatus = (enStatus)statusdto.Status,
+                    OrderId = orderId,
+                    UpdateAtUtc = DateTime.UtcNow
+                };
 
+                var outboxMessage = new OutBoxMessage
+                {
+                    Version = 1,
+                    MessageId = Guid.NewGuid(),
+                    LastErrorMessage = string.Empty,
+                    FailedCount = 0,
+                    EventName = "OrderStatusChanged",
+                    Payload = JsonSerializer.Serialize(evt),
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+                await _context.OutboxMessages.AddAsync(outboxMessage);
                 using (_auditScope.Enable())
                 {
                    await _context.SaveChangesAsync();
                  
                 }
-
+               
                 await transaction.CommitAsync();
                 _logger.LogInformation("Updating status done successfully to orderId {OrderId} new status {NewStatus}",
                             orderId, statusdto.Status);

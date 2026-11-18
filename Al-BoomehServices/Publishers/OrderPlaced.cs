@@ -34,7 +34,7 @@ namespace Al_BoomehServices.Publishers
                 var props = new BasicProperties
                 {
                     MessageId = message.MessageId.ToString(),
-                    Type = "OrderPlaced",
+                    Type = message.Event,
                     Persistent = true,
                     Headers = new Dictionary<string, object?>
                     {

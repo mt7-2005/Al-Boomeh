@@ -115,3 +115,32 @@ Partner test lines: their own store is allowed, and the other store is refused.
 
 - **Own store:** `watching store 42` is allowed.
 - **Other stores:** the other two attempts are refused.
+
+## Part 3 :
+
+### Part 0:
+- Al-Boomeh/BackgroundServices/OutBoxRelay.cs 
+**what change :** add the OrderStatusChanged publisher 
+- Al-Boomeh/Program.cs
+**what change :** Register the consumer and the interface for event
+- Al-BoomehServices/Consumers/NotificationsOrderPlaced.cs
+**what change :** send for the hub client for store 
+- Al-BoomehServices/Dtos/OrderDtos.cs
+**what change :** add the OrderChangedDto
+- Al-BoomehServices/Publishers/OrderPlaced.cs
+**what change :** make the type for the message take it from the messageDto
+- Al-BoomehServices/Services/OrderService.cs
+**what change :** save the OutBoxMessage in the UpdateOrderStatus method
+
+### Part 1:
+
+Status: Delivered
+6:23:05 PM — connected
+6:23:05 PM — watching order 300056
+6:23:25 PM — order 300056 is now Accepted
+6:24:20 PM — order 300056 is now Preparing
+6:24:27 PM — order 300056 is now OutForDelivery
+6:24:36 PM — order 300056 is now Delivered
+
+### Part 2:
+The Day 5 fanout exchange for “order placed” let me add this reaction without touching the existing flow: I simply bound a new queue and consumer to it, which publishes through the SignalR hub to notify the partners’ clients whenever an order is placed. Since fanout delivers a copy of every message to each bound queue, the original consumers kept working unchanged. For order status updates I created a separate exchange, so those events are routed independently from the order-placed ones.

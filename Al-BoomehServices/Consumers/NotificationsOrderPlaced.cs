@@ -1,7 +1,10 @@
-﻿using Al_BoomehDAL.Classes;
+﻿using Al_Boomeh.Hubs;
+using Al_BoomehDAL.Classes;
+using Al_BoomehDAL.Models;
 using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Jobs;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,6 +12,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Al_BoomehServices.Consumers
 {
@@ -30,7 +34,7 @@ namespace Al_BoomehServices.Consumers
 
         private const int MaxAttempts = 3;
 
-
+        private readonly IHubContext<OrdersHub> _hub;
         private readonly IConnection _connection;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<NotificationsOrderPlaced> _logger;
@@ -39,11 +43,13 @@ namespace Al_BoomehServices.Consumers
         public NotificationsOrderPlaced(
             IConnection connection,
             IServiceScopeFactory scopeFactory,
-            ILogger<NotificationsOrderPlaced> logger)
+            ILogger<NotificationsOrderPlaced> logger,
+           IHubContext<OrdersHub> hub)
         {
             _connection = connection;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _hub = hub;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -129,8 +135,13 @@ namespace Al_BoomehServices.Consumers
 
                         await engine.SendAsync(customerEmail, "Your order was placed", body);
 
+                        var newOrder =new { orderId = order.OrderId };
                         foreach (var partnerEmail in await userService.GetPartnerEmails(order.StoreId))
                         {
+
+                            await _hub.Clients
+                                .Group($"store-{order.StoreId}")
+                                .SendAsync("OrderPlaced", newOrder);
                             await engine.SendAsync(partnerEmail, "New order", body);
                         }
 

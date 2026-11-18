@@ -16,6 +16,14 @@ namespace Al_BoomehDAL.Classes
         public decimal Total { get; set; }
         public DateTime CreatedAtUtc { get; set; }
     }
+    public class OrderStatusChangedDto
+    {
+        public int OrderId { get; set; }
+        public enStatus NewStatus { get; set; }
+        public int StoreId { get; set; }
+        public int CustomerId { get; set; }
+        public DateTime UpdateAtUtc { get; set; }
+    }
     public class SendOrderConfirmationDTO
     {
         public int OrderId { get; set; }
