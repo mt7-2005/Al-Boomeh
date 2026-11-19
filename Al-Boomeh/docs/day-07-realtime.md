@@ -162,3 +162,26 @@ Status: Preparing
  
 ### Part 2:
 If we load the status first and the Partner moves the order forward before the connection joins the group, the update is lost: the broadcast goes only to the members the group has at the time it is sent, so this client never receives it. The page keeps showing the old status, and the customer never learns that the order’s status has changed.
+
+## Part 5 :
+
+### Part 0:
+- Before fix : the copy 5101 is the copy that handled the moves and the moves that reached on the page is {Accepted,Preparing}
+
+### Part 1:
+- backplane : is the problem when the SingleR connection know onlly the his own copy and dont see the others
+
+### Part 2:
+- the consumer needs one queue for each copy because evry SingleR connection onlly the his own copy , and the day 5  work queue dont need that because the exchager in his publisher is direct not a fanout 
+
+### Part 3:
+| **queue name** | `order-status-changed.<GUID>` | Unique per copy, so no two copies share a queue. Each copy therefore gets its own copy of every message. |
+| **durable** | `false` | The queue is not kept across a broker restart. It is tied to the copy's life, so there is nothing to save. |
+| **exclusive** | `true` | Only the connection that declared the queue can use it, and RabbitMQ deletes it when that connection closes. This is what makes the queue disappear when the copy stops. |
+| **autoDelete** | `true` | The queue is deleted after its last consumer unsubscribes. Extra cleanup in case the exclusive rule does not fire. |
+
+### Part 4:
+**Name**: Sticky sessions
+**How it works:** The load balancer remembers which server first handled a client, usually by setting a cookie or hashing the client’s IP. It then sends every later request from that client to the same server. SignalR needs this because a connection’s state lives in the memory of the server that created it, so the negotiate request and the connection that follows must reach the same server.
+
+

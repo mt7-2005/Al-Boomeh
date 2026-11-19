@@ -17,19 +17,17 @@ namespace Al_BoomehServices.Consumers
     public class OrderPushConsumer : BackgroundService
     {
         private const string ExchangeName = "order-status-changed";
-        private const string QueueName = "status-changed";
 
         private const string ConsumerName = "order-push";
 
         private const string RetryExchangeName = "order-status-changed.retry";
         
-        private const string RetryQueueName = "status-changed.retry";
-        private const string RetryRoutingKey = "retry";
         private const int RetryDelayMs = 10_000;
+        private string _queueName = string.Empty;
 
 
         private const string DlqName = "status-changed.dlq";
-
+        private readonly string _consumerName = $"order-push:{Guid.NewGuid():N}";
         private const int MaxAttempts = 3;
 
         private readonly IHubContext<OrdersHub> _hub;
@@ -55,6 +53,9 @@ namespace Al_BoomehServices.Consumers
             var channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
             _channel = channel;
 
+            _queueName = $"order-status-changed.{Guid.NewGuid():N}";
+            var retryQueue = $"{_queueName}.retry";
+
             await channel.ExchangeDeclareAsync(
                 ExchangeName, ExchangeType.Fanout, durable: true,
                 cancellationToken: stoppingToken);
@@ -69,37 +70,36 @@ namespace Al_BoomehServices.Consumers
                 cancellationToken: stoppingToken);
 
             await channel.QueueDeclareAsync(
-                RetryQueueName, durable: true, exclusive: false, autoDelete: false,
+                retryQueue, durable: false, exclusive: true, autoDelete: true,
                 arguments: new Dictionary<string, object?>
                 {
                     ["x-message-ttl"] = RetryDelayMs,
                     ["x-dead-letter-exchange"] = "",
-                    ["x-dead-letter-routing-key"] = QueueName
+                    ["x-dead-letter-routing-key"] = _queueName
                 },
                 cancellationToken: stoppingToken);
 
             await channel.QueueBindAsync(
-                RetryQueueName, RetryExchangeName, RetryRoutingKey,
+                retryQueue, RetryExchangeName, _queueName,
                 cancellationToken: stoppingToken);
 
 
             await channel.QueueDeclareAsync(
-                queue: QueueName,
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
+                queue: _queueName,
+                durable: false,
+                exclusive: true,
+                autoDelete: true,
                 arguments: new Dictionary<string, object?>
                 {
                     ["x-dead-letter-exchange"] = RetryExchangeName,
-                    ["x-dead-letter-routing-key"] = RetryRoutingKey
+                    ["x-dead-letter-routing-key"] = _queueName
                 },
                 cancellationToken: stoppingToken);
 
-            await channel.QueueBindAsync(
-                queue: QueueName,
-                exchange: ExchangeName,
-                routingKey: string.Empty,
+            await channel.QueueBindAsync(_queueName,ExchangeName, routingKey: "",
                 cancellationToken: stoppingToken);
+
+            await channel.BasicQosAsync(0, 1, global: false, cancellationToken: stoppingToken);
 
             var consumer = new AsyncEventingBasicConsumer(channel);
             consumer.ReceivedAsync += async (model, ea) =>
@@ -113,7 +113,7 @@ namespace Al_BoomehServices.Consumers
                     using var scope = _scopeFactory.CreateScope();
                     var processedMessages = scope.ServiceProvider.GetRequiredService<IProcessedMessageService>();
 
-                    if (!await processedMessages.TryAdd(messageId, ConsumerName))
+                    if (!await processedMessages.TryAdd(messageId, _consumerName))
                     {
                         await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                         return;
@@ -130,7 +130,7 @@ namespace Al_BoomehServices.Consumers
                     }
                     catch
                     {
-                        await processedMessages.Remove(messageId, ConsumerName);
+                        await processedMessages.Remove(messageId, _consumerName);
                         throw;
                     }
 
@@ -138,7 +138,7 @@ namespace Al_BoomehServices.Consumers
                 }
                 catch (Exception ex)
                 {
-                    var failedAttempts = ReadAttempts.GetFailedAttempts(ea.BasicProperties, QueueName) + 1;
+                    var failedAttempts = ReadAttempts.GetFailedAttempts(ea.BasicProperties, _queueName) + 1;
 
                     _logger.LogError(ex,
                         "Failed to process message {MessageId}, attempt {Attempt}/{Max}",
@@ -183,7 +183,7 @@ namespace Al_BoomehServices.Consumers
             };
 
             await channel.BasicConsumeAsync(
-                QueueName,
+                _queueName,
                 autoAck: false,
                 consumer: consumer,
                 cancellationToken: stoppingToken);
