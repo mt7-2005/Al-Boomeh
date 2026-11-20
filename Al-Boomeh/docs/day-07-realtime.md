@@ -198,4 +198,16 @@ If we load the status first and the Partner moves the order forward before the c
 ### Part 2:
 - The server finds out a connection is dead through small ping messages (empty messages that just mean “I’m still alive”). The server and the client each send a ping every 15 seconds. If the server receives no message at all from the client for 30 seconds, it treats the connection as dead, closes it, and frees its memory. So when a laptop lid is closed and the browser can’t say goodbye, the server notices after about 30 seconds of silence.
 
+## Part 7 :
 
+### Part 0:
+- Accepted -> Preparing -> OutForDelivery -> Delivered
+
+### Part 1:
+- Yes, my system saves the message with its body, which is an OrderStatusChangedDto, and it also saves the order status history, so what happens to an order can be tracked.
+ ### Part 2:
+- A socket cannot store events that happen while the connection is down. SignalR does not queue messages for a disconnected client, so anything sent in that time is lost for that connection.
+
+## The hardest thing today:
+- The hardes thing is Part 5 — Two copies of the app, one customer
+- It was a new problem, and I got to know new settings in the RabbitMQ consumer.

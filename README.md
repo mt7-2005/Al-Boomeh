@@ -42,3 +42,7 @@ When requesting an OTP for a customer, check the API logs.
 It will show in the logs like:
 
     SMS sent to 0780785454 The OTP : 545456
+
+### Open the tracker page :
+Open your app's address, with /tracker.html at the end. You see three boxes: Token, Order id and Store id. You also see two buttons: Watch order and Watch store.
+like http://localhost:`your address`/tracker.html
