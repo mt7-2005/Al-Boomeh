@@ -185,3 +185,17 @@ If we load the status first and the Partner moves the order forward before the c
 **How it works:** The load balancer remembers which server first handled a client, usually by setting a cookie or hashing the client’s IP. It then sends every later request from that client to the same server. SignalR needs this because a connection’s state lives in the memory of the server that created it, so the negotiate request and the connection that follows must reach the same server.
 
 
+## Part 6 :
+
+### Part 0:
+- **before :** 9,960
+- **after :** 53,700
+- **the difference :** 219
+
+### Part 1:
+- **Did Swagger still answer while the 200 connections were open?** Yes
+
+### Part 2:
+- The server finds out a connection is dead through small ping messages (empty messages that just mean “I’m still alive”). The server and the client each send a ping every 15 seconds. If the server receives no message at all from the client for 30 seconds, it treats the connection as dead, closes it, and frees its memory. So when a laptop lid is closed and the browser can’t say goodbye, the server notices after about 30 seconds of silence.
+
+
