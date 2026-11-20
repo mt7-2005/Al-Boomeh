@@ -29,9 +29,11 @@ namespace Al_Boomeh.Hubs
             {
                 var customerId = await _orderService.GetOrderOwnerId((int)orderId);
 
+                if (customerId == null) throw new HubException("You may not watch this order.");
+
                 var user = await _userService.GetUser((Guid)_user.UserId!);
 
-                if (user == null) throw new HubException("No user found");
+                if (user == null) throw new HubException("You may not watch this order.");
 
                 if (user.CustomerId != customerId) throw new HubException("You may not watch this order.");
 

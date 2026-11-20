@@ -496,25 +496,25 @@ namespace Al_Boomeh.Controllers
             return Ok();
         }
 
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [HttpGet("{id}/status")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<JsonContent>> GetCurrentStatus(int id, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> GetCurrentStatus(int id, [FromServices] IAuthorizationService authorizationService)
         {
             if (id <= 0) return BadRequest("Invalid data");
 
             int? ownerId = await _order.GetOrderOwnerId(id);
+            if (ownerId == null) return NotFound($"No order with id {id}");
 
             var authResult = await authorizationService.AuthorizeAsync(User, ownerId.Value, "CustomerOwnerOrAdmin");
             if (!authResult.Succeeded) return Forbid();
 
             var status = await _order.GetCurrentStatus(id);
             if (status == null) return NotFound("no status found");
-            var statusJson=new {status=status.ToString()};
 
-            return Ok(JsonSerializer.Serialize(statusJson));
+            return Ok(new { status = status.ToString() });
         }
     }
 }

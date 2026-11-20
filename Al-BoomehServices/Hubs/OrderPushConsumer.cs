@@ -17,11 +17,11 @@ namespace Al_BoomehServices.Consumers
     public class OrderPushConsumer : BackgroundService
     {
         private const string ExchangeName = "order-status-changed";
+        private const string PlacedExchangeName = "order-placed";
 
-        private const string ConsumerName = "order-push";
 
         private const string RetryExchangeName = "order-status-changed.retry";
-        
+
         private const int RetryDelayMs = 10_000;
         private string _queueName = string.Empty;
 
@@ -45,7 +45,7 @@ namespace Al_BoomehServices.Consumers
             _connection = connection;
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _hub= hub;
+            _hub = hub;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -96,7 +96,7 @@ namespace Al_BoomehServices.Consumers
                 },
                 cancellationToken: stoppingToken);
 
-            await channel.QueueBindAsync(_queueName,ExchangeName, routingKey: "",
+            await channel.QueueBindAsync(_queueName, ExchangeName, routingKey: "",
                 cancellationToken: stoppingToken);
 
             await channel.BasicQosAsync(0, 1, global: false, cancellationToken: stoppingToken);
@@ -186,6 +186,50 @@ namespace Al_BoomehServices.Consumers
                 _queueName,
                 autoAck: false,
                 consumer: consumer,
+                cancellationToken: stoppingToken);
+
+            var placedQueue = $"order-placed-push.{Guid.NewGuid():N}";
+
+            await channel.ExchangeDeclareAsync(
+                PlacedExchangeName, ExchangeType.Fanout, durable: true,
+                cancellationToken: stoppingToken);
+
+            await channel.QueueDeclareAsync(
+                placedQueue, durable: false, exclusive: true, autoDelete: true,
+                cancellationToken: stoppingToken);
+
+            await channel.QueueBindAsync(placedQueue, PlacedExchangeName, routingKey: "",
+                cancellationToken: stoppingToken);
+
+            var placedConsumer = new AsyncEventingBasicConsumer(channel);
+            placedConsumer.ReceivedAsync += async (model, ea) =>
+            {
+                try
+                {
+                    var placed = JsonSerializer.Deserialize<OrderPlacedEventDTO>(ea.Body.Span)
+                        ?? throw new InvalidOperationException("The message has no OrderPlaced body.");
+
+                    await _hub.Clients
+                        .Group($"store-{placed.StoreId}")
+                        .SendAsync("OrderPlaced", new { orderId = placed.OrderId });
+
+                    _logger.LogInformation(
+                        "Pushed OrderPlaced: order {OrderId} to store {StoreId}",
+                        placed.OrderId, placed.StoreId);
+
+                    await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to push OrderPlaced {MessageId}", ea.BasicProperties.MessageId);
+                    await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false);
+                }
+            };
+
+            await channel.BasicConsumeAsync(
+                placedQueue,
+                autoAck: false,
+                consumer: placedConsumer,
                 cancellationToken: stoppingToken);
         }
 
