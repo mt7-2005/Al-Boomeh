@@ -66,32 +66,31 @@ Before it opens a WebSocket, SignalR sends a normal HTTP `POST` request to `/hub
 ```csharp
 public async Task WatchOrder(long orderId)
 {
-    if (!_user.IsAuthenticated)
-        throw new HubException("You may not watch this order.");
+
+    if (!_user.IsAuthenticated) throw new HubException("You may not watch this order.");
 
     if (_user.Role == User.UserRole.Customer || _user.Role == User.UserRole.Admin)
     {
-        if (orderId > int.MaxValue || orderId <= 0)
-            throw new HubException("You may not watch this order.");
-
         var customerId = await _orderService.GetOrderOwnerId((int)orderId);
-        if (customerId == null)
-            throw new HubException("You may not watch this order.");
+
+        if (customerId == null) throw new HubException("You may not watch this order.");
 
         var user = await _userService.GetUser((Guid)_user.UserId!);
-        if (user == null)
-            throw new HubException("You may not watch this order.");
 
-        if (user.CustomerId != customerId)
-            throw new HubException("You may not watch this order.");
+        if (user == null) throw new HubException("You may not watch this order.");
+
+        if (user.CustomerId != customerId) throw new HubException("You may not watch this order.");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"order-{orderId}");
+
     }
     else
     {
         throw new HubException("You may not watch this order.");
     }
+
 }
+
 ```
 
 ### 3. The attack
@@ -120,9 +119,9 @@ Partner test lines: their own store is allowed, and the other store is refused.
 
 ```
 5:43:50 PM — connected
-5:43:50 PM — error: An unexpected error occurred invoking 'WatchStore' on the server. HubException: You may not watch this order.
+5:43:50 PM — error: An unexpected error occurred invoking 'WatchStore' on the server. HubException: You may not watch this store.
 5:43:53 PM — watching store 42
-5:43:56 PM — error: An unexpected error occurred invoking 'WatchStore' on the server. HubException: You may not watch this order.
+5:43:56 PM — error: An unexpected error occurred invoking 'WatchStore' on the server. HubException: You may not watch this store.
 ```
 
 - **Own store:** `watching store 42` is allowed.

@@ -182,10 +182,21 @@ To test this, I inserted an outbox row with an invalid body ({bad json). In the 
 if (message.Body.StartsWith("{bad"))
     throw new InvalidOperationException("Simulated publish failure");
 
-    | Id | MessageId | Type | Body | ProcessedOn | FailedCount | LastErrorMessage |
-|---|---|---|---|---|---|---|
-| 200196 | 8694C410-CBF1-AB04-6BAF-DB21F3DA3D4A | OrderPlaced | `{bad json` | NULL | 5 | Simulated publish failure |
+   | Id | MessageId | EventName | Version | Payload | SentAtUtc | FailedCount | LastErrorMessage | CreatedAtUtc | ReadAtUtc |
+|---|---|---|---|---|---|---|---|---|---|
+| 200196 | 8694C410-CBF1-AB04-6BAF-DB21F3DA3D4A | OrderPlaced | 1 | `{bad json` | NULL | 5 | Simulated publish failure | 2026-11-01 16:52:27.3072450 | 2026-11-07 17:56:15.7800000 |
+
+**Rows that were sent:**
+
+| Id | MessageId | EventName | Version | Payload | SentAtUtc | FailedCount | LastErrorMessage | CreatedAtUtc | ReadAtUtc |
+|---|---|---|---|---|---|---|---|---|---|
+| 400100 | 164246AA-7C6E-4F74-9107-0F747C686F70 | OrderStatusChanged | 1 | `{"OrderId":300056,"NewStatus":1,"StoreId":1,"CustomerId":13,"UpdateAtUtc":"2026-11-18T15:14:36.9281406Z"}` | 2026-11-18 15:14:37.5650771 | 0 | NULL | 2026-11-18 15:14:36.9338786 | 2026-11-18 15:14:37.5000000 |
+| 400101 | 01136E1C-18C4-46AA-8887-7AE3143E141E | OrderStatusChanged | 1 | `{"OrderId":300056,"NewStatus":2,"StoreId":1,"CustomerId":13,"UpdateAtUtc":"2026-11-18T15:15:38.5262591Z"}` | 2026-11-18 15:15:39.0240486 | 0 | NULL | 2026-11-18 15:15:38.5263297 | 2026-11-18 15:15:39.0000000 |
+| 400102 | 4CEB1542-A16A-4557-9496-C71F7CCD546F | OrderStatusChanged | 1 | `{"OrderId":300056,"NewStatus":3,"StoreId":1,"CustomerId":13,"UpdateAtUtc":"2026-11-18T15:16:45.0912129Z"}` | 2026-11-18 15:16:45.1835942 | 0 | NULL | 2026-11-18 15:16:45.0912948 | 2026-11-18 15:16:45.1733333 |
 
 ## How two relays share the outbox :
 
-Say what each piece does: UPDLOCK locks the 50 rows, READPAST makes the other relay skip them, ReadAtUtc marks the claim, and the 30-second limit frees the rows of a relay that died.
+- `UPDLOCK` locks the 50 rows I pick, so no other relay can change them.
+- `READPAST` makes a second relay skip those locked rows instead of waiting for them.
+- `ReadAtUtc` marks the claim: I set it to the time I took the rows.
+- The 30-second limit frees the rows of a relay that died. If `ReadAtUtc` is older than 30 seconds and `SentAtUtc` is still `NULL`, another relay can take the row again.

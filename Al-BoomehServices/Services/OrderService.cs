@@ -6,7 +6,6 @@ using Al_BoomehServices.Interfaces;
 using Al_BoomehServices.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SQLitePCL;
 using System.Text.Json;
 
 namespace Al_BoomehDAL.Classes
@@ -611,26 +610,7 @@ namespace Al_BoomehDAL.Classes
                         product.IsOutOfStock = false;
                     }
                 }
-                var evt = new OrderStatusChangedDto
-                {
-                    CustomerId = order.CustomerId,
-                    StoreId = order.StoreId,
-                    NewStatus = (enStatus)statusdto.Status,
-                    OrderId = orderId,
-                    UpdateAtUtc = DateTime.UtcNow
-                };
-
-                var outboxMessage = new OutBoxMessage
-                {
-                    Version = 1,
-                    MessageId = Guid.NewGuid(),
-                    LastErrorMessage = string.Empty,
-                    FailedCount = 0,
-                    EventName = "OrderStatusChanged",
-                    Payload = JsonSerializer.Serialize(evt),
-                    CreatedAtUtc = DateTime.UtcNow
-                };
-                await _context.OutboxMessages.AddAsync(outboxMessage);
+                await AddStatusChangedToOutbox(order, (enStatus)statusdto.Status);
                 using (_auditScope.Enable())
                 {
                    await _context.SaveChangesAsync();
@@ -676,7 +656,7 @@ namespace Al_BoomehDAL.Classes
             order.DriverId = updateDriverDTO.DriverId;
             order.DriverCode = _CreateDriverCode();
             order.Status = (int)enStatus.OutForDelivery;
-
+            await AddStatusChangedToOutbox(order, enStatus.OutForDelivery);
             using (_auditScope.Enable())
             {
                 int rowseffect = await _context.SaveChangesAsync();
@@ -1049,6 +1029,8 @@ namespace Al_BoomehDAL.Classes
                        
                         order.Status = (int)enStatus.Decline;
 
+                        await AddStatusChangedToOutbox(order, enStatus.Decline);
+
                         using (_auditScope.Enable())
                         {
                             await _context.SaveChangesAsync();
@@ -1107,9 +1089,32 @@ namespace Al_BoomehDAL.Classes
             var status=await _context.Orders
                 .AsNoTracking()
                 .Where(o=>o.Id == orderId)
-                .Select(o=>(enStatus)o.Status)
+                .Select(o=>(enStatus?)o.Status)
                 .FirstOrDefaultAsync();
             return status;
         }
+        private async Task AddStatusChangedToOutbox(Order order, enStatus newStatus)
+        {
+            var statusChanged = new OrderStatusChangedDto
+            {
+                OrderId = order.Id,
+                CustomerId = order.CustomerId,
+                StoreId = order.StoreId,
+                NewStatus = newStatus,
+                UpdateAtUtc = DateTime.UtcNow
+            };
+
+            var outboxMessage = new OutBoxMessage
+            {
+                Version = 1,
+                MessageId = Guid.NewGuid(),
+                EventName = "OrderStatusChanged",
+                Payload = JsonSerializer.Serialize(statusChanged),
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            await _context.OutboxMessages.AddAsync(outboxMessage);
+        }
+
     }
 }

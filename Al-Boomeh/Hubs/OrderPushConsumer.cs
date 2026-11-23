@@ -12,7 +12,8 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-namespace Al_BoomehServices.Consumers
+using Al_BoomehServices.Consumers;
+namespace Al_Boomeh.Hubs    
 {
     public class OrderPushConsumer : BackgroundService
     {
@@ -113,11 +114,8 @@ namespace Al_BoomehServices.Consumers
                     using var scope = _scopeFactory.CreateScope();
                     var processedMessages = scope.ServiceProvider.GetRequiredService<IProcessedMessageService>();
 
-                    if (!await processedMessages.TryAdd(messageId, _consumerName))
-                    {
-                        await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
-                        return;
-                    }
+                    await processedMessages.TryAdd(messageId, _consumerName);
+                    
 
                     try
                     {

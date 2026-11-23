@@ -236,20 +236,20 @@ namespace Al_BoomehDAL.Seeding
             var totalSw = Stopwatch.StartNew();
 
 
-            //await WipeAllAsync();
+            await WipeAllAsync();
 
-            //await SeedCategoriesAsync();
-            //await SeedStoresAsync();
-            //await SeedCustomersAsync();
-            //await SeedUsersAsync();
-            //await SeedProductsAsync();
-
-
-            //await SeedAddressesAsync();
+            await SeedCategoriesAsync();
+            await SeedStoresAsync();
+            await SeedCustomersAsync();
+            await SeedUsersAsync();
+            await SeedProductsAsync();
 
 
+            await SeedAddressesAsync();
 
-            //await SeedOrdersWithLinesAndHistoryAsync();
+
+
+            await SeedOrdersWithLinesAndHistoryAsync();
 
             await SeedOutBoxMessagesAsync();
 

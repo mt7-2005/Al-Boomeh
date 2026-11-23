@@ -5,12 +5,15 @@
 namespace Al_BoomehDAL.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIndexToOutboxMessages : Migration
+    public partial class AddFilterToOutboxIndex : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-           
+            migrationBuilder.DropIndex(
+                name: "IX_OutboxMessages_Pending",
+                table: "OutboxMessages");
+
             migrationBuilder.CreateIndex(
                 name: "IX_OutboxMessages_Pending",
                 table: "OutboxMessages",
@@ -25,7 +28,10 @@ namespace Al_BoomehDAL.Migrations
                 name: "IX_OutboxMessages_Pending",
                 table: "OutboxMessages");
 
-            
+            migrationBuilder.CreateIndex(
+                name: "IX_OutboxMessages_Pending",
+                table: "OutboxMessages",
+                column: "Id");
         }
     }
 }

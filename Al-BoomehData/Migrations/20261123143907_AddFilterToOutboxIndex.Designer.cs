@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Al_BoomehDAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261107154322_AddIndexToOutboxMessages")]
-    partial class AddIndexToOutboxMessages
+    [Migration("20261123143907_AddFilterToOutboxIndex")]
+    partial class AddFilterToOutboxIndex
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

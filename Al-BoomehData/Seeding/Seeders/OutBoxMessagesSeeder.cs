@@ -46,8 +46,8 @@ namespace Al_BoomehDAL.Seeding.Seeders
                     EventName = "OrderPlaced",
                     CreatedAtUtc = createdAtUtc,
                     Payload = JsonSerializer.Serialize(payload),
-                    SentAtUtc = DateTime.UtcNow,
-                    ReadAtUtc = DateTime.UtcNow,
+                    SentAtUtc = createdAtUtc,
+                    ReadAtUtc = createdAtUtc,
                     FailedCount= 0,
                     Version= 1
                 });

@@ -44,5 +44,6 @@ It will show in the logs like:
     SMS sent to 0780785454 The OTP : 545456
 
 ### Open the tracker page :
+ log in with POST /api/Auth/login in Swagger, and copy the access token.
 Open your app's address, with /tracker.html at the end. You see three boxes: Token, Order id and Store id. You also see two buttons: Watch order and Watch store.
-like http://localhost:`your address`/tracker.html
+like http://localhost:5155/tracker.html, 
