@@ -1,5 +1,6 @@
 using Al_Boomeh.Api.Middleware;
 using Al_Boomeh.Authorization;
+using Al_Boomeh.Hubs;
 using Al_Boomeh.Services;
 using Al_BoomehAPI.BackgroundServices;
 using Al_BoomehAPI.Middleware;
@@ -15,8 +16,10 @@ using Al_BoomehServices.Jobs;
 using Al_BoomehServices.Publishers;
 using Al_BoomehServices.Services;
 using Al_BoomehServices.Validators;
+using FirebaseAdmin;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Google.Apis.Auth.OAuth2;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +36,9 @@ using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using static Al_Boomeh.Controllers.OrdersController;
-using Al_Boomeh.Hubs;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -245,6 +250,17 @@ builder.Services.AddScoped<IOutBoxMessageService, OutBoxMessageService>();
 builder.Services.AddScoped<IOutBoxMessagesCleanUp, OutBoxMessageService>();
 
 builder.Services.AddSignalR();
+
+var serviceAccountPath = builder.Configuration["Firebase:ServiceAccountPath"]
+    ?? throw new InvalidOperationException("Firebase:ServiceAccountPath is missing");
+
+var serviceAccount = CredentialFactory.FromFile<ServiceAccountCredential>(serviceAccountPath);
+
+FirebaseApp.Create(new AppOptions
+{
+    Credential = serviceAccount.ToGoogleCredential()
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

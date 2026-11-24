@@ -28,7 +28,7 @@ appsettings.json
 appsettings.Development.json
 appsettings.*.json
 !appsettings.Example.json
-
+firebase-service-account.json
 ## ===== Misc =====
 *.pdb
 *.cache
