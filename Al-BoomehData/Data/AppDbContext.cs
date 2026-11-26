@@ -60,6 +60,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<OutBoxMessage> OutboxMessages { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<PushDevice> PushDevices { get; set; }
     public virtual DbSet<ProcessedMessage> ProcessedMessages { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,7 +77,10 @@ public partial class AppDbContext : DbContext
             .HasDatabaseName("IX_OutboxMessages_Pending")
             .HasFilter("[SentAtUtc] IS NULL");
 
-
+        modelBuilder.Entity<PushDevice>(entity => {
+            entity.HasIndex(p => p.InstallationId)
+            .IsUnique();
+        });
 
         modelBuilder.Entity<DailyReport>(entity => { entity.HasIndex(e => new { e.StoreId, e.ReportDateUtc }).IsUnique();
             entity.Property(e => e.TotalRevenue).HasColumnType("decimal(18, 2)");

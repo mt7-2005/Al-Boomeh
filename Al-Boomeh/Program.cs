@@ -218,6 +218,7 @@ builder.Services.AddHangfire(config =>
 
 builder.Services.AddHangfireServer();
 
+builder.Services.AddScoped<IDevicesService, DevicesService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
